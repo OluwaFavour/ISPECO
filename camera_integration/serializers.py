@@ -18,3 +18,18 @@ class AddCameraSerializer(serializers.Serializer):
             raise serializers.ValidationError(form.errors)
         camera = form.save()
         return camera
+
+    def update(self, instance, validated_data):
+        for key, value in validated_data.items():
+            setattr(instance, key, value)
+        instance.save()
+        return instance
+
+    def partial_update(self, instance, validated_data):
+        return self.update(instance, validated_data)
+
+
+class CameraSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Camera
+        fields = ["id", "name", "ip_address", "port", "model"]

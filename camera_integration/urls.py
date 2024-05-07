@@ -1,8 +1,10 @@
 from django.urls import path
 
-from .views import AddCameraView, DeleteCameraView
+from .views import CameraView, ListCameraView, CameraPasswordView
 
 urlpatterns = [
-    path("add/", AddCameraView.as_view(), name="add-camera"),
-    path("delete/<int:id>/", DeleteCameraView.as_view(), name="delete-camera"),
+    path("", CameraView.as_view(), name="add-camera"),
+    path("<int:id>/", CameraView.as_view(), name="camera"),
+    path("<int:id>/password/", CameraPasswordView.as_view(), name="camera-password"),
+    path("list/", ListCameraView.as_view(), name="list-cameras"),
 ]
