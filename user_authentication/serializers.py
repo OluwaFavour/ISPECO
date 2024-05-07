@@ -38,6 +38,7 @@ class UserSignupSerializer(serializers.Serializer):
 
 
 class UserSignupResponseSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
     email = serializers.EmailField()
     name = serializers.SerializerMethodField()
 

@@ -13,7 +13,6 @@ class Camera(models.Model):
         name (str): The name of the camera.
         ip_address (str): The IP address of the camera.
         port (int): The port number of the camera.
-        username (str): The username for accessing the camera.
         encrypted_password (bytes): The encrypted password for accessing the camera.
         model (str): The model of the camera.
         user (User): The user associated with the camera.
@@ -27,7 +26,6 @@ class Camera(models.Model):
     name = models.CharField(max_length=100, blank=True, null=True)
     ip_address = models.GenericIPAddressField()
     port = models.IntegerField()
-    username = models.CharField(max_length=100)
     encrypted_password = models.BinaryField()
     model = models.CharField(max_length=100)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="cameras")
