@@ -6,7 +6,7 @@ from rest_framework.authtoken.serializers import AuthTokenSerializer
 from knox.auth import TokenAuthentication
 from knox.models import AuthToken
 from knox.views import LoginView as KnoxLoginView
-from .serializers import UserSignupSerializer
+from .serializers import UserSignupSerializer, EmailAuthTokenSerializer
 
 
 class SignupView(generics.GenericAPIView):
@@ -35,7 +35,7 @@ class SignupView(generics.GenericAPIView):
             return Response(
                 {
                     "message": "User created successfully",
-                    "user": {"username": user.username, "email": user.email},
+                    "user": {"email": user.email, "name": user.get_full_name()},
                 },
                 status=status.HTTP_201_CREATED,
             )
@@ -63,9 +63,10 @@ class LoginView(KnoxLoginView):
     """
 
     permission_classes = (permissions.AllowAny,)
+    serializer_class = EmailAuthTokenSerializer
 
     def post(self, request, format=None):
-        serializer = AuthTokenSerializer(data=request.data)
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
         login(request, user)

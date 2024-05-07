@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import User
+from user_authentication.models import User
 from django.conf import settings
 
 from cryptography.fernet import Fernet

@@ -45,11 +45,13 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "user_authentication",
-    "camera_integration",
     "channels",
     "rest_framework",
     "knox",
+    "drf_spectacular",
+    "drf_spectacular_sidecar",
+    "user_authentication",
+    "camera_integration",
 ]
 
 MIDDLEWARE = [
@@ -62,6 +64,9 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+# Custom user model
+AUTH_USER_MODEL = "user_authentication.User"
+
 # Fernet key for encryption
 FERNET_KEY = os.getenv("FERNET_KEY")
 
@@ -71,6 +76,17 @@ AUTHENTICATION_BACKENDS = [
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ("knox.auth.TokenAuthentication",),
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "ISPECO API",
+    "DESCRIPTION": "A backend app for ISPECO",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SWAGGER_UI_DIST": "SIDECAR",
+    "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
+    "REDOC_DIST": "SIDECAR",
 }
 
 ROOT_URLCONF = "ISPECO_Core.urls"
