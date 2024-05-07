@@ -6,7 +6,12 @@ from rest_framework.authtoken.serializers import AuthTokenSerializer
 from knox.auth import TokenAuthentication
 from knox.models import AuthToken
 from knox.views import LoginView as KnoxLoginView
-from .serializers import UserSignupSerializer, EmailAuthTokenSerializer
+from drf_spectacular.utils import extend_schema
+from .serializers import (
+    UserSignupSerializer,
+    EmailAuthTokenSerializer,
+    UserSignupResponseSerializer,
+)
 
 
 class SignupView(generics.GenericAPIView):
@@ -28,15 +33,16 @@ class SignupView(generics.GenericAPIView):
     serializer_class = UserSignupSerializer
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        responses={status.HTTP_201_CREATED: UserSignupResponseSerializer},
+    )
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
+            response_serializer = UserSignupResponseSerializer(user)
             return Response(
-                {
-                    "message": "User created successfully",
-                    "user": {"email": user.email, "name": user.get_full_name()},
-                },
+                response_serializer.data,
                 status=status.HTTP_201_CREATED,
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -37,6 +37,20 @@ class UserSignupSerializer(serializers.Serializer):
         return user
 
 
+class UserSignupResponseSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    name = serializers.SerializerMethodField()
+
+    def get_name(self, user: User):
+        return user.get_full_name()
+
+    def create(self, validated_data):
+        raise NotImplementedError()
+
+    def update(self, instance, validated_data):
+        raise NotImplementedError()
+
+
 class EmailAuthTokenSerializer(serializers.Serializer):
     email = serializers.EmailField(label=_("Email"))
     password = serializers.CharField(
