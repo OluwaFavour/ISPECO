@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     "drf_spectacular_sidecar",
     "user_authentication",
     "camera_integration",
+    "live_streaming",
 ]
 
 MIDDLEWARE = [

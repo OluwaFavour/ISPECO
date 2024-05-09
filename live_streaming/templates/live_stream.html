@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Stream</title>
+</head>
+<body>
+    <div id="video-container">
+        <img id="video-stream" src="#" alt="Camera Stream">
+    </div>
+
+    <script>
+        const video = document.getElementById('video-stream');
+
+        // WebSocket server URL
+        const wsUri = 'ws://' + window.location.host + '/ws/live_stream/';
+
+        // Create a WebSocket connection
+        const socket = new WebSocket(wsUri);
+
+        // Handle WebSocket connection open event
+        socket.onopen = function(event) {
+            console.log('WebSocket connection established');
+        };
+
+        // Handle WebSocket message event (receive frames)
+        socket.onmessage = function(event) {
+            // Get the binary image data from the message
+            const imageData = event.data;
+
+            // Create a blob from the binary image data
+            const blob = new Blob([imageData], { type: 'image/jpeg' });
+
+            // Create a URL for the blob
+            const imageUrl = URL.createObjectURL(blob);
+
+            // Update the source of the image element
+            video.src = imageUrl;
+        };
+
+        // Handle WebSocket connection close event
+        socket.onclose = function(event) {
+            console.log('WebSocket connection closed');
+        };
+
+        // Handle WebSocket error event
+        socket.onerror = function(error) {
+            console.error('WebSocket error:', error);
+        };
+    </script>
+</body>
+</html>
