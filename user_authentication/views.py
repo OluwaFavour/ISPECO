@@ -11,6 +11,7 @@ from .serializers import (
     UserSignupSerializer,
     EmailAuthTokenSerializer,
     UserSignupResponseSerializer,
+    UserSerializer,
 )
 
 
@@ -77,3 +78,28 @@ class LoginView(KnoxLoginView):
         user = serializer.validated_data["user"]
         login(request, user)
         return super(LoginView, self).post(request, format=None)
+
+
+class UserView(generics.RetrieveAPIView):
+    """
+    View for retrieving user details.
+
+    This view allows users to retrieve their own details after authentication.
+    It inherits from the RetrieveAPIView class and overrides the get_object method
+    to return the authenticated user.
+
+    Attributes:
+        permission_classes (tuple): A tuple of permission classes that
+            determine who can access this view. In this case, it requires
+            the user to be authenticated.
+
+    Methods:
+        get_object(): Retrieves the authenticated user object.
+
+    """
+
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = UserSerializer
+
+    def get_object(self):
+        return self.request.user
