@@ -1,16 +1,31 @@
+import os
+
 from django.contrib.auth import login
+from django.core.mail import send_mail
+from django.shortcuts import render
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
 
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.authtoken.serializers import AuthTokenSerializer
+from rest_framework.renderers import (
+    TemplateHTMLRenderer,
+    BrowsableAPIRenderer,
+    JSONRenderer,
+)
+from rest_framework.reverse import reverse
 from knox.auth import TokenAuthentication
 from knox.models import AuthToken
 from knox.views import LoginView as KnoxLoginView
 from drf_spectacular.utils import extend_schema
+from .models import User, EmailAlreadyVerifiedError, InvalidVerificationTokenError
 from .serializers import (
+    PasswordResetSerializer,
     UserSerializer,
     UserUpdateSerializer,
     EmailAuthTokenSerializer,
+    ForgotPasswordSerializer,
     PasswordUpdateSerializer,
 )
 
@@ -41,11 +56,64 @@ class SignupView(generics.GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
+            token = user.generate_email_verification_token()
+            verification_link = request.build_absolute_uri(
+                reverse("verify_email", kwargs={"token": token})
+            )
+            # Send token to user's email in form of a link
+            self.send_verification_email(user, verification_link=verification_link)
             return Response(
-                serializer.data,
-                status=status.HTTP_201_CREATED,
+                "Please verify your email address", status=status.HTTP_201_CREATED
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def send_verification_email(self, user, verification_link):
+        subject = "Verify your email address"
+        html_message = render_to_string(
+            "email_verification.html", {"verification_link": verification_link}
+        )
+        plain_message = strip_tags(html_message)
+        from_email = "fsticks8187@gmail.com"
+        to = user.email
+        print(f"Sending verification email to {to}")
+        send_mail(subject, plain_message, from_email, [to], html_message=html_message)
+        print(f"Verification email sent to {to}")
+
+
+class VerifyEmailView(generics.GenericAPIView):
+    """
+    View for verifying user email.
+
+    This view allows users to verify their email address by clicking on the verification link
+    sent to their email. Upon successful verification, the user's email will be marked as verified
+    and a success response will be returned.
+
+    Methods:
+        get(request, *args, **kwargs): Handles the GET request for verifying user email.
+
+    Attributes:
+        permission_classes: The permission classes applied to the view.
+
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        token = kwargs.get("token")
+        user = User.objects.get(email_verification_token=token)
+        if user:
+            try:
+                user.verify_email()
+            except EmailAlreadyVerifiedError as e:
+                return Response(f"{str(e)}", status=status.HTTP_400_BAD_REQUEST)
+            except InvalidVerificationTokenError as e:
+                return Response(f"{str(e)}", status=status.HTTP_400_BAD_REQUEST)
+            serializer = UserSerializer(user)
+            return Response(
+                {"message": "Email verified successfully", "user": serializer.data},
+                status=status.HTTP_200_OK,
+            )
+        return Response("Invalid token", status=status.HTTP_400_BAD_REQUEST)
 
 
 class LoginView(KnoxLoginView):
@@ -75,6 +143,11 @@ class LoginView(KnoxLoginView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
+        if not user.is_email_verified:
+            return Response(
+                {"detail": "Please verify your email address before logging in."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         login(request, user)
         return super(LoginView, self).post(request, format=None)
 
@@ -175,4 +248,76 @@ class UserPasswordView(generics.GenericAPIView):
         serializer.save()
         return Response(
             {"detail": "Password updated successfully."}, status=status.HTTP_200_OK
+        )
+
+
+class ForgotPasswordView(generics.GenericAPIView):
+    permission_classes = (permissions.AllowAny,)
+    serializer_class = ForgotPasswordSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            token = user.generate_password_reset_token()
+            reset_link = request.build_absolute_uri(
+                reverse("password_reset", kwargs={"token": token})
+            )
+            user.send_password_reset_email(reset_link)
+            return Response(
+                "Password reset link sent to your email address",
+                status=status.HTTP_200_OK,
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PasswordResetView(generics.GenericAPIView):
+
+    permission_classes = (permissions.AllowAny,)
+    serializer_class = PasswordResetSerializer
+    # template_name = "password_reset.html"
+
+    def get(self, request, *args, **kwargs):
+        token = kwargs.get("token")
+        try:
+            user = User.objects.get(password_reset_token=token)
+        except User.DoesNotExist:
+            return Response(
+                {"message": "Invalid password reset token"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if user.is_password_reset_token_valid():
+            return Response(
+                {"token": token},
+                # template_name=self.template_name,
+                status=status.HTTP_200_OK,
+            )
+        return Response(
+            {"message": "Invalid password reset token"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    def post(self, request, *args, **kwargs):
+        token = kwargs.get("token")
+        try:
+            user = User.objects.get(password_reset_token=token)
+        except User.DoesNotExist:
+            return Response(
+                {"message": "Invalid password reset token"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if user.is_password_reset_token_valid():
+            serializer = self.get_serializer(user, data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save(user)
+            user.password_reset_token = None
+            user.password_reset_token_created_at = None
+            user.save()
+            return Response(
+                {"message": "Password reset successfully"}, status=status.HTTP_200_OK
+            )
+        return Response(
+            {"message": "Invalid password reset token"},
+            status=status.HTTP_400_BAD_REQUEST,
         )

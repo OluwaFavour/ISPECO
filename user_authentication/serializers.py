@@ -76,17 +76,22 @@ class EmailAuthTokenSerializer(serializers.Serializer):
 
 class PasswordUpdateSerializer(serializers.Serializer):
     old_password = serializers.CharField(
-        label=_("Old Password"), style={"input_type": "password"}, trim_whitespace=False
+        label=_("Old Password"),
+        style={"input_type": "password"},
+        trim_whitespace=False,
+        write_only=True,
     )
     new_password1 = serializers.CharField(
         label=_("New Password"),
         style={"input_type": "password"},
         trim_whitespace=False,
+        write_only=True,
     )
     new_password2 = serializers.CharField(
         label=_("New Password confirmation"),
         style={"input_type": "password"},
         trim_whitespace=False,
+        write_only=True,
     )
 
     def validate(self, attrs):
@@ -111,5 +116,51 @@ class PasswordUpdateSerializer(serializers.Serializer):
     def save(self):
         user = self.context["request"].user
         user.set_password(self.validated_data["new_password1"])
+        user.save()
+        return user
+
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField(label=_("Email"))
+
+    def validate_email(self, value):
+        if not User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("Email address does not exist.")
+        return value
+
+    def save(self):
+        email = self.validated_data["email"]
+        user = User.objects.get(email=email)
+        return user
+
+
+class PasswordResetSerializer(serializers.Serializer):
+    password1 = serializers.CharField(
+        label=_("New Password"),
+        style={"input_type": "password"},
+        trim_whitespace=False,
+        write_only=True,
+    )
+    password2 = serializers.CharField(
+        label=_("New Password confirmation"),
+        style={"input_type": "password"},
+        trim_whitespace=False,
+        write_only=True,
+    )
+
+    def validate(self, attrs):
+        password1 = attrs.get("password1")
+        password2 = attrs.get("password2")
+
+        if password1 != password2:
+            raise serializers.ValidationError(
+                {"password2": _("The two password fields didn't match.")},
+                code="authorization",
+            )
+
+        return attrs
+
+    def save(self, user):
+        user.set_password(self.validated_data["password1"])
         user.save()
         return user
