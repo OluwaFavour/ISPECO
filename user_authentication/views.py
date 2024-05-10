@@ -8,10 +8,10 @@ from knox.models import AuthToken
 from knox.views import LoginView as KnoxLoginView
 from drf_spectacular.utils import extend_schema
 from .serializers import (
-    UserSignupSerializer,
-    EmailAuthTokenSerializer,
-    UserSignupResponseSerializer,
     UserSerializer,
+    UserUpdateSerializer,
+    EmailAuthTokenSerializer,
+    PasswordUpdateSerializer,
 )
 
 
@@ -31,19 +31,18 @@ class SignupView(generics.GenericAPIView):
 
     """
 
-    serializer_class = UserSignupSerializer
+    serializer_class = UserSerializer
     permission_classes = [permissions.AllowAny]
 
     @extend_schema(
-        responses={status.HTTP_201_CREATED: UserSignupResponseSerializer},
+        responses={status.HTTP_201_CREATED: UserSerializer},
     )
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
-            response_serializer = UserSignupResponseSerializer(user)
             return Response(
-                response_serializer.data,
+                serializer.data,
                 status=status.HTTP_201_CREATED,
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -103,3 +102,77 @@ class UserView(generics.RetrieveAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class UpdateUserView(generics.GenericAPIView):
+    """
+    View for updating user details.
+
+    This view allows users to update their own details after authentication.
+    It inherits from the GenericAPIView class and overrides the put method
+    to handle the update functionality.
+
+    Attributes:
+        permission_classes (tuple): A tuple of permission classes that
+            determine who can access this view. In this case, it requires
+            the user to be authenticated.
+
+    Methods:
+        put(request, *args, **kwargs): Handles the HTTP PUT request for updating user details.
+            It validates the request data, updates the user details, and returns the response.
+
+    """
+
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = UserUpdateSerializer
+
+    @extend_schema(
+        responses={status.HTTP_200_OK: UserSerializer},
+    )
+    def put(self, request, *args, **kwargs):
+        serializer = self.get_serializer(request.user, data=request.data, partial=False)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        responses={status.HTTP_200_OK: UserSerializer},
+    )
+    def patch(self, request, *args, **kwargs):
+        serializer = self.get_serializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class UserPasswordView(generics.GenericAPIView):
+    """
+    View for updating user password.
+
+    This view allows users to update their password after authentication.
+    It inherits from the GenericAPIView class and overrides the put method
+    to handle the password update functionality.
+
+    Attributes:
+        permission_classes (tuple): A tuple of permission classes that
+            determine who can access this view. In this case, it requires
+            the user to be authenticated.
+
+    Methods:
+        put(request, *args, **kwargs): Handles the HTTP PUT request for updating user password.
+            It validates the request data, updates the user password, and returns the response.
+
+    """
+
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = PasswordUpdateSerializer
+
+    def put(self, request, *args, **kwargs):
+        serializer = self.get_serializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            {"detail": "Password updated successfully."}, status=status.HTTP_200_OK
+        )

@@ -5,18 +5,17 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ["id", "email", "first_name", "last_name"]
-
-
-class UserSignupSerializer(serializers.Serializer):
+class UserSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
     first_name = serializers.CharField(max_length=150)
     last_name = serializers.CharField(max_length=150)
     email = serializers.EmailField()
-    password1 = serializers.CharField(max_length=128, write_only=True)
-    password2 = serializers.CharField(max_length=128, write_only=True)
+    password1 = serializers.CharField(
+        max_length=128, write_only=True, style={"input_type": "password"}
+    )
+    password2 = serializers.CharField(
+        max_length=128, write_only=True, style={"input_type": "password"}
+    )
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
@@ -43,19 +42,10 @@ class UserSignupSerializer(serializers.Serializer):
         return user
 
 
-class UserSignupResponseSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
-    email = serializers.EmailField()
-    name = serializers.SerializerMethodField()
-
-    def get_name(self, user: User):
-        return user.get_full_name()
-
-    def create(self, validated_data):
-        raise NotImplementedError()
-
-    def update(self, instance, validated_data):
-        raise NotImplementedError()
+class UserUpdateSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    first_name = serializers.CharField(max_length=150)
+    last_name = serializers.CharField(max_length=150)
 
 
 class EmailAuthTokenSerializer(serializers.Serializer):
@@ -82,3 +72,44 @@ class EmailAuthTokenSerializer(serializers.Serializer):
 
         attrs["user"] = user
         return attrs
+
+
+class PasswordUpdateSerializer(serializers.Serializer):
+    old_password = serializers.CharField(
+        label=_("Old Password"), style={"input_type": "password"}, trim_whitespace=False
+    )
+    new_password1 = serializers.CharField(
+        label=_("New Password"),
+        style={"input_type": "password"},
+        trim_whitespace=False,
+    )
+    new_password2 = serializers.CharField(
+        label=_("New Password confirmation"),
+        style={"input_type": "password"},
+        trim_whitespace=False,
+    )
+
+    def validate(self, attrs):
+        user = self.context["request"].user
+        old_password = attrs.get("old_password")
+        new_password1 = attrs.get("new_password1")
+        new_password2 = attrs.get("new_password2")
+
+        if not user.check_password(old_password):
+            raise serializers.ValidationError(
+                {"old_password": _("Wrong password.")}, code="authorization"
+            )
+
+        if new_password1 != new_password2:
+            raise serializers.ValidationError(
+                {"new_password2": _("The two password fields didn't match.")},
+                code="authorization",
+            )
+
+        return attrs
+
+    def save(self):
+        user = self.context["request"].user
+        user.set_password(self.validated_data["new_password1"])
+        user.save()
+        return user

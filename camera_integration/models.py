@@ -1,6 +1,7 @@
+from django.conf import settings
+from django.core.validators import URLValidator
 from django.db import models
 from user_authentication.models import User
-from django.conf import settings
 
 from cryptography.fernet import Fernet
 
@@ -13,6 +14,7 @@ class Camera(models.Model):
         name (str): The name of the camera.
         ip_address (str): The IP address of the camera.
         port (int): The port number of the camera.
+        encrypted_url (bytes): The encrypted URL for accessing the camera.
         encrypted_password (bytes): The encrypted password for accessing the camera.
         model (str): The model of the camera.
         user (User): The user associated with the camera.
@@ -24,6 +26,8 @@ class Camera(models.Model):
     """
 
     name = models.CharField(max_length=100, blank=True, null=True)
+    username = models.CharField(max_length=100)
+    encrypted_url = models.BinaryField()
     ip_address = models.GenericIPAddressField()
     port = models.IntegerField()
     encrypted_password = models.BinaryField()
@@ -54,6 +58,31 @@ class Camera(models.Model):
         """
         fernet = Fernet(settings.FERNET_KEY)
         self.encrypted_password = fernet.encrypt(value.encode())
+
+    @property
+    def url(self) -> str:
+        """
+        Decrypts and returns the encrypted URL.
+
+        Returns:
+            str: The decrypted URL.
+        """
+        fernet = Fernet(settings.FERNET_KEY)
+        return fernet.decrypt(self.encrypted_url).decode()
+
+    @url.setter
+    def url(self, value: str) -> None:
+        """
+        Encrypts the given URL using Fernet encryption and stores it in the encrypted_url attribute.
+
+        Args:
+            value (str): The URL to be encrypted.
+
+        Returns:
+            None
+        """
+        fernet = Fernet(settings.FERNET_KEY)
+        self.encrypted_url = fernet.encrypt(value.encode())
 
     def __str__(self) -> str:
         return self.name or f"Camera {self.id} - {self.model}"

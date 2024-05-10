@@ -10,11 +10,14 @@
         <img id="video-stream" src="#" alt="Camera Stream">
     </div>
 
+    {{ cam_id | json_script:'cameraID'}}
     <script>
+        // Get the camera ID from the template context
+        const cameraID = JSON.parse(document.getElementById('cameraID').textContent);
         const video = document.getElementById('video-stream');
 
         // WebSocket server URL
-        const wsUri = 'ws://' + window.location.host + '/ws/live_stream/';
+        const wsUri = 'ws://' + window.location.host + '/ws/live_stream/' + cameraID + '/';
 
         // Create a WebSocket connection
         const socket = new WebSocket(wsUri);
