@@ -94,9 +94,8 @@ class User(AbstractBaseUser, PermissionsMixin):
             {"password_reset_link": password_reset_link},
         )
         plain_message = strip_tags(html_message)
-        from_email = "fsticks8187@gmail.com"
         to = self.email
-        send_mail(subject, plain_message, from_email, [to], html_message=html_message)
+        send_mail(subject, plain_message, [to], html_message=html_message)
 
     def generate_email_verification_token(self):
         """

@@ -73,10 +73,9 @@ class SignupView(generics.GenericAPIView):
             "email_verification.html", {"verification_link": verification_link}
         )
         plain_message = strip_tags(html_message)
-        from_email = "fsticks8187@gmail.com"
         to = user.email
         print(f"Sending verification email to {to}")
-        send_mail(subject, plain_message, from_email, [to], html_message=html_message)
+        send_mail(subject, plain_message, [to], html_message=html_message)
         print(f"Verification email sent to {to}")
 
 
