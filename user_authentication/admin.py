@@ -20,6 +20,7 @@ class UserAdmin(BaseUserAdmin):
                     "is_active",
                     "is_staff",
                     "is_superuser",
+                    "is_email_verified",
                     "groups",
                     "user_permissions",
                 ),
@@ -42,6 +43,13 @@ class UserAdmin(BaseUserAdmin):
             },
         ),
     )
-    list_display = ("email", "first_name", "last_name", "is_staff", "is_active")
+    list_display = (
+        "email",
+        "first_name",
+        "last_name",
+        "is_staff",
+        "is_active",
+        "is_email_verified",
+    )
     search_fields = ("email", "first_name", "last_name")
     ordering = ("email",)
