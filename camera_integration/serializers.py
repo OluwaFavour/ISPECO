@@ -5,9 +5,19 @@ from .forms import AddCameraForm
 from .models import Camera
 
 
-class CameraSerializer(serializers.Serializer):
+class CameraOutSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     name = serializers.CharField(max_length=100, required=False)
+    username = serializers.CharField(max_length=100)
+    ip_address = serializers.IPAddressField()
+    port = serializers.IntegerField()
+    model = serializers.CharField(max_length=100)
+
+
+class CameraInSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(max_length=100, required=False)
+    username = serializers.CharField(max_length=100)
     ip_address = serializers.IPAddressField()
     port = serializers.IntegerField()
     url = serializers.URLField(

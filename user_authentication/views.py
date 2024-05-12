@@ -1,29 +1,22 @@
-import os
-
 from django.contrib.auth import login
 from django.core.mail import send_mail
-from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
-
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from rest_framework.authtoken.serializers import AuthTokenSerializer
-from rest_framework.renderers import (
-    TemplateHTMLRenderer,
-    BrowsableAPIRenderer,
-    JSONRenderer,
-)
 from rest_framework.reverse import reverse
-from knox.auth import TokenAuthentication
-from knox.models import AuthToken
+from rest_framework import serializers
 from knox.views import LoginView as KnoxLoginView
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, inline_serializer
+from drf_spectacular.types import OpenApiTypes
 from .models import User, EmailAlreadyVerifiedError, InvalidVerificationTokenError
 from .serializers import (
+    LoginOutSerializer,
     PasswordResetSerializer,
-    UserSerializer,
-    UserUpdateSerializer,
+    UserInSerializer,
+    UserOutSerializer,
+    UserUpdateInSerializer,
+    UserUpdateOutSerializer,
     EmailAuthTokenSerializer,
     ForgotPasswordSerializer,
     PasswordUpdateSerializer,
@@ -46,11 +39,16 @@ class SignupView(generics.GenericAPIView):
 
     """
 
-    serializer_class = UserSerializer
+    serializer_class = UserInSerializer
     permission_classes = [permissions.AllowAny]
 
     @extend_schema(
-        responses={status.HTTP_201_CREATED: UserSerializer},
+        request=UserInSerializer,
+        responses={
+            status.HTTP_201_CREATED: OpenApiTypes.STR,
+            400: OpenApiTypes.STR,
+        },
+        description="Create a new user and send a verification email to the user's email address using the email set as DEFAULT_FROM_EMAIL in the settings as the sender.",
     )
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -75,7 +73,13 @@ class SignupView(generics.GenericAPIView):
         plain_message = strip_tags(html_message)
         to = user.email
         print(f"Sending verification email to {to}")
-        send_mail(subject, plain_message, [to], html_message=html_message)
+        send_mail(
+            subject,
+            plain_message,
+            from_email=None,
+            recipient_list=[to],
+            html_message=html_message,
+        )
         print(f"Verification email sent to {to}")
 
 
@@ -97,6 +101,19 @@ class VerifyEmailView(generics.GenericAPIView):
 
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        responses={
+            status.HTTP_200_OK: inline_serializer(
+                name="VerifyEmailResponse",
+                fields={
+                    "message": serializers.CharField(),
+                    "user": UserOutSerializer(),
+                },
+            ),
+            400: OpenApiTypes.STR,
+        },
+        description="Verify the user's email address using the verification token.",
+    )
     def get(self, request, *args, **kwargs):
         token = kwargs.get("token")
         user = User.objects.get(email_verification_token=token)
@@ -106,8 +123,9 @@ class VerifyEmailView(generics.GenericAPIView):
             except EmailAlreadyVerifiedError as e:
                 return Response(f"{str(e)}", status=status.HTTP_400_BAD_REQUEST)
             except InvalidVerificationTokenError as e:
+                user.delete()
                 return Response(f"{str(e)}", status=status.HTTP_400_BAD_REQUEST)
-            serializer = UserSerializer(user)
+            serializer = UserInSerializer(user)
             return Response(
                 {"message": "Email verified successfully", "user": serializer.data},
                 status=status.HTTP_200_OK,
@@ -138,6 +156,15 @@ class LoginView(KnoxLoginView):
     permission_classes = (permissions.AllowAny,)
     serializer_class = EmailAuthTokenSerializer
 
+    @extend_schema(
+        request=EmailAuthTokenSerializer,
+        responses={
+            status.HTTP_200_OK: LoginOutSerializer,
+            400: OpenApiTypes.STR,
+            401: OpenApiTypes.STR,
+        },
+        description="Authenticate the user and log in to the system. The user must have a verified email address.",
+    )
     def post(self, request, format=None):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -145,7 +172,7 @@ class LoginView(KnoxLoginView):
         if not user.is_email_verified:
             return Response(
                 {"detail": "Please verify your email address before logging in."},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_401_UNAUTHORIZED,
             )
         login(request, user)
         return super(LoginView, self).post(request, format=None)
@@ -170,8 +197,12 @@ class UserView(generics.RetrieveAPIView):
     """
 
     permission_classes = (permissions.IsAuthenticated,)
-    serializer_class = UserSerializer
+    serializer_class = UserOutSerializer
 
+    @extend_schema(
+        responses={status.HTTP_200_OK: UserOutSerializer},
+        description="Retrieve the details of the authenticated user.",
+    )
     def get_object(self):
         return self.request.user
 
@@ -190,25 +221,17 @@ class UpdateUserView(generics.GenericAPIView):
             the user to be authenticated.
 
     Methods:
-        put(request, *args, **kwargs): Handles the HTTP PUT request for updating user details.
+        patch(request, *args, **kwargs): Handles the HTTP PUT request for updating user details.
             It validates the request data, updates the user details, and returns the response.
 
     """
 
     permission_classes = (permissions.IsAuthenticated,)
-    serializer_class = UserUpdateSerializer
+    serializer_class = UserUpdateInSerializer
 
     @extend_schema(
-        responses={status.HTTP_200_OK: UserSerializer},
-    )
-    def put(self, request, *args, **kwargs):
-        serializer = self.get_serializer(request.user, data=request.data, partial=False)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    @extend_schema(
-        responses={status.HTTP_200_OK: UserSerializer},
+        responses={status.HTTP_200_OK: UserUpdateOutSerializer},
+        description="Partially update the details of the authenticated user.",
     )
     def patch(self, request, *args, **kwargs):
         serializer = self.get_serializer(request.user, data=request.data, partial=True)
@@ -239,6 +262,15 @@ class UserPasswordView(generics.GenericAPIView):
     permission_classes = (permissions.IsAuthenticated,)
     serializer_class = PasswordUpdateSerializer
 
+    @extend_schema(
+        responses={
+            status.HTTP_200_OK: inline_serializer(
+                name="PasswordUpdateResponse",
+                fields={"detail": serializers.CharField()},
+            )
+        },
+        description="Update the password of the authenticated user.",
+    )
     def put(self, request, *args, **kwargs):
         serializer = self.get_serializer(
             data=request.data, context={"request": request}
@@ -246,7 +278,8 @@ class UserPasswordView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(
-            {"detail": "Password updated successfully."}, status=status.HTTP_200_OK
+            {"detail": "Password updated successfully. Logged out of all clients."},
+            status=status.HTTP_200_OK,
         )
 
 
@@ -254,6 +287,14 @@ class ForgotPasswordView(generics.GenericAPIView):
     permission_classes = (permissions.AllowAny,)
     serializer_class = ForgotPasswordSerializer
 
+    @extend_schema(
+        request=ForgotPasswordSerializer,
+        responses={
+            status.HTTP_200_OK: OpenApiTypes.STR,
+            400: OpenApiTypes.STR,
+        },
+        description="Send a password reset link to the user's email address using the email set as DEFAULT_FROM_EMAIL in the settings as the sender.",
+    )
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
@@ -271,11 +312,18 @@ class ForgotPasswordView(generics.GenericAPIView):
 
 
 class PasswordResetView(generics.GenericAPIView):
-
     permission_classes = (permissions.AllowAny,)
     serializer_class = PasswordResetSerializer
-    # template_name = "password_reset.html"
 
+    @extend_schema(
+        responses={
+            status.HTTP_200_OK: inline_serializer(
+                name="PasswordResetResponse", fields={"token": serializers.CharField()}
+            ),
+            400: OpenApiTypes.STR,
+        },
+        description="Check if the password reset token specified in the URL is valid and return the token if it is valid.",
+    )
     def get(self, request, *args, **kwargs):
         token = kwargs.get("token")
         try:
@@ -288,7 +336,6 @@ class PasswordResetView(generics.GenericAPIView):
         if user.is_password_reset_token_valid():
             return Response(
                 {"token": token},
-                # template_name=self.template_name,
                 status=status.HTTP_200_OK,
             )
         return Response(
@@ -296,6 +343,20 @@ class PasswordResetView(generics.GenericAPIView):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    @extend_schema(
+        request=PasswordResetSerializer,
+        responses={
+            status.HTTP_200_OK: inline_serializer(
+                name="PasswordResetResponsePost",
+                fields={"message": serializers.CharField()},
+            ),
+            400: inline_serializer(
+                name="PasswordResetResponseError",
+                fields={"message": serializers.CharField()},
+            ),
+        },
+        description="Reset the user's password using the password reset token specified in the URL and update the user's password.",
+    )
     def post(self, request, *args, **kwargs):
         token = kwargs.get("token")
         try:

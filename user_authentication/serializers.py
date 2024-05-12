@@ -5,8 +5,19 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 
-class UserSerializer(serializers.Serializer):
+class LoginOutSerializer(serializers.Serializer):
+    expiry = serializers.DateTimeField()
+    token = serializers.CharField()
+
+
+class UserOutSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
+    first_name = serializers.CharField(max_length=150)
+    last_name = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
+
+
+class UserInSerializer(serializers.Serializer):
     first_name = serializers.CharField(max_length=150)
     last_name = serializers.CharField(max_length=150)
     email = serializers.EmailField()
@@ -42,7 +53,18 @@ class UserSerializer(serializers.Serializer):
         return user
 
 
-class UserUpdateSerializer(serializers.Serializer):
+class UserUpdateInSerializer(serializers.Serializer):
+    first_name = serializers.CharField(max_length=150)
+    last_name = serializers.CharField(max_length=150)
+
+    def update(self, instance, validated_data):
+        instance.first_name = validated_data.get("first_name", instance.first_name)
+        instance.last_name = validated_data.get("last_name", instance.last_name)
+        instance.save()
+        return instance
+
+
+class UserUpdateOutSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     first_name = serializers.CharField(max_length=150)
     last_name = serializers.CharField(max_length=150)
@@ -117,6 +139,7 @@ class PasswordUpdateSerializer(serializers.Serializer):
         user = self.context["request"].user
         user.set_password(self.validated_data["new_password1"])
         user.save()
+        user.auth_token_set.all().delete()  # Delete all existing tokens
         return user
 
 
