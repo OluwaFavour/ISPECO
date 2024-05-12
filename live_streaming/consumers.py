@@ -8,16 +8,47 @@ from camera_integration.models import Camera
 
 @database_sync_to_async
 def get_camera_user(cam_id: int):
+    """
+    Retrieves the user associated with a given camera ID.
+
+    Args:
+        cam_id (int): The ID of the camera.
+
+    Returns:
+        User: The user associated with the camera.
+
+    Raises:
+        Camera.DoesNotExist: If the camera with the given ID does not exist.
+    """
     return Camera.objects.get(id=cam_id).user
 
 
 @database_sync_to_async
 def get_camera_url(cam_id: int):
+    """
+    Retrieves the URL of a camera based on its ID.
+
+    Args:
+        cam_id (int): The ID of the camera.
+
+    Returns:
+        str: The URL of the camera.
+
+    Raises:
+        Camera.DoesNotExist: If the camera with the given ID does not exist.
+    """
     return Camera.objects.get(id=cam_id).url
 
 
 class CameraConsumer(AsyncWebsocketConsumer):
+    """
+    Represents a consumer for streaming camera frames over a WebSocket connection.
+    """
+
     async def connect(self):
+        """
+        Called when a WebSocket connection is established.
+        """
         self.user = self.scope["user"]
         self.cam_id = self.scope["url_route"]["kwargs"]["cam_id"]
         if self.user.is_anonymous:
@@ -33,9 +64,15 @@ class CameraConsumer(AsyncWebsocketConsumer):
             await self.send(bytes_data=frame_data)
 
     async def disconnect(self, close_code):
+        """
+        Called when a WebSocket connection is closed.
+        """
         pass
 
     async def generate_frames(self):
+        """
+        Generates camera frames and yields them as bytes.
+        """
         camera = cv.VideoCapture(
             self.cam_url if self.cam_url else 0
         )  # Use 0 for webcam, replace with camera URL for IP camera

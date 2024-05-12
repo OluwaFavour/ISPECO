@@ -19,7 +19,16 @@ class AddCameraForm(forms.ModelForm):
 
     class Meta:
         model = Camera
-        fields = ["name", "ip_address", "url", "password", "port", "model", "user"]
+        fields = [
+            "name",
+            "username",
+            "ip_address",
+            "url",
+            "password",
+            "port",
+            "model",
+            "user",
+        ]
 
     def save(self, commit=True):
         camera = super().save(commit=False)
