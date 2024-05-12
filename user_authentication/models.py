@@ -95,7 +95,13 @@ class User(AbstractBaseUser, PermissionsMixin):
         )
         plain_message = strip_tags(html_message)
         to = self.email
-        send_mail(subject, plain_message, [to], html_message=html_message)
+        send_mail(
+            subject,
+            plain_message,
+            from_email=None,
+            recipient_list=[to],
+            html_message=html_message,
+        )
 
     def generate_email_verification_token(self):
         """
@@ -124,7 +130,7 @@ class User(AbstractBaseUser, PermissionsMixin):
             raise EmailAlreadyVerifiedError("The email is already verified.")
         if not self.is_email_verification_token_valid():
             raise InvalidVerificationTokenError(
-                "The email verification token is invalid or has expired."
+                "The email verification token has expired. Sign up again to get a new one."
             )
         self.is_email_verified = True
         self.save(update_fields=["is_email_verified"])
