@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
+from dj_database_url import config as db_config
 
 
 load_dotenv()
@@ -27,13 +28,22 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-h$z8l3uqd^ksk+b=u6yoxalp*_i&@eqgd8r%2h6@l(g6cpj)d-"
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "localhost:8000",
+    "localhost:3000",
+    "localhost:8001",
+    os.getenv("VERCEL_URL"),
+]
 
+ADMINS = [
+    ("ISPECO", os.getenv("EMAIL_HOST_USER")),
+    ("Admin", os.getenv("DEFAULT_FROM_EMAIL")),
+]
 
 # Application definition
 
@@ -65,6 +75,15 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+# CSRF settings
+CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "True")
+
+# Session settings
+SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "True")
+
+# HTTPS settings
+SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "True")
+
 # Custom user model
 AUTH_USER_MODEL = "user_authentication.User"
 
@@ -88,6 +107,7 @@ SPECTACULAR_SETTINGS = {
     "SWAGGER_UI_DIST": "SIDECAR",
     "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
     "REDOC_DIST": "SIDECAR",
+    "SERVERS": [{"url": os.getenv("ISPECO_SERVER_URL", "http://localhost:8000")}],
 }
 
 ROOT_URLCONF = "ISPECO_Core.urls"
@@ -119,12 +139,7 @@ CHANNEL_LAYERS = {
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-}
+DATABASES = {"default": db_config(default=os.getenv("DATABASE_URL"))}
 
 # Email settings
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
@@ -134,6 +149,7 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
+SERVER_EMAIL = os.getenv("SERVER_EMAIL")
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
@@ -168,6 +184,7 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 STATIC_URL = "static/"
 
