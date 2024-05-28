@@ -33,12 +33,7 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = [
-    "localhost:8000",
-    "localhost:3000",
-    "localhost:8001",
-    os.getenv("VERCEL_URL"),
-]
+ALLOWED_HOSTS = [os.getenv("ALLOWED_HOSTS", "*")]
 
 ADMINS = [
     ("ISPECO", os.getenv("EMAIL_HOST_USER")),
@@ -54,9 +49,11 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    "whitenoise.runserver_nostatic",
     "django.contrib.staticfiles",
     "channels",
     "rest_framework",
+    "corsheaders",
     "knox",
     "drf_spectacular",
     "drf_spectacular_sidecar",
@@ -67,6 +64,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -75,14 +73,23 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-# CSRF settings
-CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "True")
+# # CSRF settings
+# CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "True")
 
-# Session settings
-SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "True")
+# # Session settings
+# SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "True")
 
-# HTTPS settings
+# # HTTPS settings
 SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "True")
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# CORS Settings
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:8000",
+]
+
+CORS_ALLOW_CREDENTIALS = True
 
 # Custom user model
 AUTH_USER_MODEL = "user_authentication.User"
@@ -130,10 +137,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "ISPECO_Core.wsgi.application"
 ASGI_APPLICATION = "ISPECO_Core.asgi.application"
-
-CHANNEL_LAYERS = {
-    "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"},
-}
 
 
 # Database

@@ -17,6 +17,7 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path, include
+from .views import HealthCheckView
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularRedocView,
@@ -25,6 +26,7 @@ from drf_spectacular.views import (
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("", HealthCheckView.as_view(), name="health"),
     path("", include("live_streaming.urls")),
     path("api/auth/", include("user_authentication.urls")),
     path("api/cameras/", include("camera_integration.urls")),
