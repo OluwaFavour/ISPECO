@@ -5,3 +5,8 @@ db.sqlite3
 .env
 update.md
 staticfiles/
+secrets/
+*.txt
+load_secrets.sh
+entry.bat
+docker_entrypoint.sh
