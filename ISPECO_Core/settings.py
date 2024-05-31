@@ -73,20 +73,22 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-# # CSRF settings
-# CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "True")
+# CSRF settings
+CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "True") == "True"
 
-# # Session settings
-# SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "True")
+# Session settings
+SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "True") == "True"
 
 # # HTTPS settings
-SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "True")
+SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "True") == "True"
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # CORS Settings
 CORS_ALLOWED_ORIGINS = [
+    "https://api.prod.api.ispecocloud.com",
     "http://localhost:3000",
     "http://localhost:8000",
+    "https://ispecocloud.com",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -148,7 +150,7 @@ DATABASES = {"default": db_config(default=os.getenv("DATABASE_URL"))}
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = os.getenv("EMAIL_HOST")
 EMAIL_PORT = os.getenv("EMAIL_PORT")
-EMAIL_USE_TLS = True
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True") == "True"
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
