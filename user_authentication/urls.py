@@ -7,15 +7,17 @@ from .views import (
     UserView,
     UpdateUserView,
     UserPasswordView,
-    VerifyEmailView,
     PasswordResetView,
     ForgotPasswordView,
+    SendEmailOTPView,
+    VerifyEmailOTPView,
 )
 
 urlpatterns = [
+    path("send-email-otp/", SendEmailOTPView.as_view(), name="send_otp"),
+    path("verify-email-otp/", VerifyEmailOTPView.as_view(), name="verify_otp"),
     path("signup/", SignupView.as_view(), name="knox_signup"),
     path("forgot-password/", ForgotPasswordView.as_view(), name="forgot_password"),
-    path("verify-email/<str:token>", VerifyEmailView.as_view(), name="verify_email"),
     path(
         "password-reset/<str:token>", PasswordResetView.as_view(), name="password_reset"
     ),

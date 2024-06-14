@@ -1,8 +1,9 @@
 from django.contrib.auth import authenticate
 from .forms import CustomUserCreationForm
-from .models import User
+from .models import User, OTP
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
+from phonenumber_field.serializerfields import PhoneNumberField
 
 
 class LoginOutSerializer(serializers.Serializer):
@@ -12,15 +13,56 @@ class LoginOutSerializer(serializers.Serializer):
 
 class UserOutSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
-    first_name = serializers.CharField(max_length=150)
-    last_name = serializers.CharField(max_length=150)
+    full_name = serializers.CharField(max_length=300)
     email = serializers.EmailField()
+    country = serializers.CharField(max_length=100)
+    city = serializers.CharField(max_length=100)
+    address = serializers.CharField(max_length=300)
+    zip_code = serializers.CharField(max_length=10)
+    phone_number = PhoneNumberField()
+
+
+class EmailSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class EmailOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=6)
+
+    def validate_email(self, value):
+        if not OTP.objects.filter(email=value).exists():
+            raise serializers.ValidationError("Email address does not exist.")
+        return value
+
+    def validate_otp(self, value):
+        if not OTP.objects.filter(otp=value).exists():
+            raise serializers.ValidationError("Invalid OTP.")
+        return value
+
+
+class PhoneSerializer(serializers.Serializer):
+    phone_number = PhoneNumberField()
+
+
+class PhoneOTPSerializer(serializers.Serializer):
+    phone_number = PhoneNumberField()
+    otp = serializers.CharField(max_length=6)
+
+    def validate_phone_number(self, value):
+        if not OTP.objects.filter(phone_number=value).exists():
+            raise serializers.ValidationError("Phone number does not exist.")
+        return value
+
+    def validate_otp(self, value):
+        if not OTP.objects.filter(otp=value).exists():
+            raise serializers.ValidationError("Invalid OTP.")
+        return value
 
 
 class UserInSerializer(serializers.Serializer):
-    first_name = serializers.CharField(max_length=150)
-    last_name = serializers.CharField(max_length=150)
     email = serializers.EmailField()
+    otp = serializers.CharField(max_length=6)
     password1 = serializers.CharField(
         max_length=128, write_only=True, style={"input_type": "password"}
     )
@@ -28,46 +70,69 @@ class UserInSerializer(serializers.Serializer):
         max_length=128, write_only=True, style={"input_type": "password"}
     )
 
+    def validate_otp(self, value):
+        if not OTP.objects.filter(otp=value).exists():
+            raise serializers.ValidationError("Invalid OTP.")
+        else:
+            otp = OTP.objects.get(otp=value)
+            if not otp.is_valid():
+                raise serializers.ValidationError("OTP has expired.")
+        return value
+
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError("Email address already exists.")
         return value
 
     def validate(self, data):
+        email = data["email"]
+        otp = data["otp"]
+        if not OTP.objects.filter(email=email, otp=otp).exists():
+            raise serializers.ValidationError("Invalid OTP.")
         form = CustomUserCreationForm(data)
         if not form.is_valid():
             raise serializers.ValidationError(form.errors.as_data())
         return data
 
     def create(self, validated_data):
-        first_name = validated_data["first_name"]
-        last_name = validated_data["last_name"]
         email = validated_data["email"]
         password = validated_data["password1"]
         user = User.objects.create_user(
             email=email,
             password=password,
-            first_name=first_name,
-            last_name=last_name,
         )
         return user
 
 
 class UserUpdateInSerializer(serializers.Serializer):
-    first_name = serializers.CharField(max_length=150)
-    last_name = serializers.CharField(max_length=150)
+    full_name = serializers.CharField(max_length=300)
+    country = serializers.CharField(max_length=100)
+    city = serializers.CharField(max_length=100)
+    address = serializers.CharField(max_length=300)
+    zip_code = serializers.CharField(max_length=10)
+    phone_number = PhoneNumberField()
 
     def update(self, instance, validated_data):
-        instance.first_name = validated_data.get("first_name", instance.first_name)
-        instance.last_name = validated_data.get("last_name", instance.last_name)
+        instance.full_name = validated_data.get("full_name", instance.full_name)
+        instance.country = validated_data.get("country", instance.country)
+        instance.city = validated_data.get("city", instance.city)
+        instance.address = validated_data.get("address", instance.address)
+        instance.zip_code = validated_data.get("zip_code", instance.zip_code)
+        instance.phone_number = validated_data.get(
+            "phone_number", instance.phone_number
+        )
         instance.save()
         return instance
 
 
 class UserUpdateOutSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
-    first_name = serializers.CharField(max_length=150)
-    last_name = serializers.CharField(max_length=150)
+    full_name = serializers.CharField(max_length=300)
+    country = serializers.CharField(max_length=100)
+    city = serializers.CharField(max_length=100)
+    address = serializers.CharField(max_length=300)
+    zip_code = serializers.CharField(max_length=10)
+    phone_number = PhoneNumberField()
 
 
 class EmailAuthTokenSerializer(serializers.Serializer):

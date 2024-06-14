@@ -9,7 +9,7 @@ from rest_framework import serializers
 from knox.views import LoginView as KnoxLoginView
 from drf_spectacular.utils import extend_schema, inline_serializer
 from drf_spectacular.types import OpenApiTypes
-from .models import User, EmailAlreadyVerifiedError, InvalidVerificationTokenError
+from .models import User, EmailAlreadyVerifiedError, InvalidVerificationTokenError, OTP
 from .serializers import (
     LoginOutSerializer,
     PasswordResetSerializer,
@@ -20,7 +20,92 @@ from .serializers import (
     EmailAuthTokenSerializer,
     ForgotPasswordSerializer,
     PasswordUpdateSerializer,
+    EmailSerializer,
+    EmailOTPSerializer,
+    PhoneSerializer,
+    PhoneOTPSerializer,
 )
+from .utils import generate_otp
+from ISPECO_Core.settings import (
+    TWILIO_ACCOUNT_SID,
+    TWILIO_AUTH_TOKEN,
+    TWILIO_PHONE_NUMBER,
+)
+from twilio.rest import Client
+
+
+class SendEmailOTPView(generics.GenericAPIView):
+    permission_classes = (permissions.AllowAny,)
+    serializer_class = EmailSerializer
+
+    @extend_schema(
+        request=EmailSerializer,
+        responses={status.HTTP_200_OK: OpenApiTypes.STR, 400: OpenApiTypes.STR},
+        description="Send an OTP to the user's email address using the email set as DEFAULT_FROM_EMAIL in the settings as the sender.",
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data["email"]
+            otp = generate_otp()
+            try:
+                otp_obj = OTP.objects.get(email=email)
+            except OTP.DoesNotExist:
+                otp_obj = OTP.objects.create(email=email, otp=otp)
+            else:
+                if otp_obj.is_eligible_for_renewal():
+                    otp = otp_obj.renew()
+                else:
+                    return Response(
+                        {"message": "Please wait before requesting a new OTP"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            # Send OTP to user's email
+            self.send_otp_mail(email, otp)
+            return Response(
+                {"message": "OTP sent to your email address"}, status=status.HTTP_200_OK
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def send_otp_mail(self, email, otp):
+        subject = "OTP for ISPECO email verification"
+        html_message = render_to_string("otp_email.html", {"otp_code": otp})
+        plain_message = strip_tags(html_message)
+        to = email
+        print(f"Sending OTP email to {to}")
+        send_mail(
+            subject=subject,
+            message=plain_message,
+            from_email=None,
+            recipient_list=[to],
+            html_message=html_message,
+            fail_silently=False,
+        )
+        print(f"OTP email sent to {to}")
+
+
+class VerifyEmailOTPView(generics.GenericAPIView):
+    permission_classes = (permissions.AllowAny,)
+    serializer_class = EmailOTPSerializer
+
+    def get(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data["email"]
+            otp = serializer.validated_data["otp"]
+            try:
+                otp_obj = OTP.objects.get(email=email, otp=otp)
+            except OTP.DoesNotExist:
+                return Response(
+                    {"message": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST
+                )
+            if otp_obj.is_valid():
+                return Response(
+                    {"message": "OTP verified successfully"}, status=status.HTTP_200_OK
+                )
+            return Response(
+                {"message": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class SignupView(generics.GenericAPIView):
@@ -48,89 +133,16 @@ class SignupView(generics.GenericAPIView):
             status.HTTP_201_CREATED: OpenApiTypes.STR,
             400: OpenApiTypes.STR,
         },
-        description="Create a new user and send a verification email to the user's email address using the email set as DEFAULT_FROM_EMAIL in the settings as the sender.",
+        description="Validate the user's email address and OTP, and create a new user.",
     )
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
-            token = user.generate_email_verification_token()
-            verification_link = request.build_absolute_uri(
-                reverse("verify_email", kwargs={"token": token})
-            )
-            # Send token to user's email in form of a link
-            self.send_verification_email(user, verification_link=verification_link)
             return Response(
-                "Please verify your email address", status=status.HTTP_201_CREATED
+                {"message": "User created successfully"}, status=status.HTTP_201_CREATED
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def send_verification_email(self, user, verification_link):
-        subject = "Verify your email address"
-        html_message = render_to_string(
-            "email_verification.html", {"verification_link": verification_link}
-        )
-        plain_message = strip_tags(html_message)
-        to = user.email
-        print(f"Sending verification email to {to}")
-        send_mail(
-            subject,
-            plain_message,
-            from_email=None,
-            recipient_list=[to],
-            html_message=html_message,
-        )
-        print(f"Verification email sent to {to}")
-
-
-class VerifyEmailView(generics.GenericAPIView):
-    """
-    View for verifying user email.
-
-    This view allows users to verify their email address by clicking on the verification link
-    sent to their email. Upon successful verification, the user's email will be marked as verified
-    and a success response will be returned.
-
-    Methods:
-        get(request, *args, **kwargs): Handles the GET request for verifying user email.
-
-    Attributes:
-        permission_classes: The permission classes applied to the view.
-
-    """
-
-    permission_classes = [permissions.AllowAny]
-
-    @extend_schema(
-        responses={
-            status.HTTP_200_OK: inline_serializer(
-                name="VerifyEmailResponse",
-                fields={
-                    "message": serializers.CharField(),
-                    "user": UserOutSerializer(),
-                },
-            ),
-            400: OpenApiTypes.STR,
-        },
-        description="Verify the user's email address using the verification token.",
-    )
-    def get(self, request, *args, **kwargs):
-        token = kwargs.get("token")
-        user = User.objects.get(email_verification_token=token)
-        if user:
-            try:
-                user.verify_email()
-            except EmailAlreadyVerifiedError as e:
-                return Response(f"{str(e)}", status=status.HTTP_400_BAD_REQUEST)
-            except InvalidVerificationTokenError as e:
-                user.delete()
-                return Response(f"{str(e)}", status=status.HTTP_400_BAD_REQUEST)
-            serializer = UserInSerializer(user)
-            return Response(
-                {"message": "Email verified successfully", "user": serializer.data},
-                status=status.HTTP_200_OK,
-            )
-        return Response("Invalid token", status=status.HTTP_400_BAD_REQUEST)
 
 
 class LoginView(KnoxLoginView):
@@ -169,11 +181,6 @@ class LoginView(KnoxLoginView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
-        if not user.is_email_verified:
-            return Response(
-                {"detail": "Please verify your email address before logging in."},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
         login(request, user)
         return super(LoginView, self).post(request, format=None)
 
@@ -212,18 +219,19 @@ class UpdateUserView(generics.GenericAPIView):
     View for updating user details.
 
     This view allows users to update their own details after authentication.
-    It inherits from the GenericAPIView class and overrides the put method
+    It inherits from the GenericAPIView class and overrides the patch method
     to handle the update functionality.
 
     Attributes:
         permission_classes (tuple): A tuple of permission classes that
             determine who can access this view. In this case, it requires
             the user to be authenticated.
+        serializer_class (class): The serializer class used for validating
+            and deserializing input, and for serializing output.
 
     Methods:
-        patch(request, *args, **kwargs): Handles the HTTP PUT request for updating user details.
+        patch(request, *args, **kwargs): Handles the HTTP PATCH request for updating user details.
             It validates the request data, updates the user details, and returns the response.
-
     """
 
     permission_classes = (permissions.IsAuthenticated,)
@@ -236,8 +244,65 @@ class UpdateUserView(generics.GenericAPIView):
     def patch(self, request, *args, **kwargs):
         serializer = self.get_serializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
+
+        validated_data = serializer.validated_data
+
+        if "phone_number" in validated_data:
+            return self.handle_phone_number_update(request, validated_data, serializer)
+
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def handle_phone_number_update(self, request, validated_data, serializer):
+        phone_number = validated_data["phone_number"]
+        otp = request.data.get("otp")
+
+        if otp:
+            if not self.verify_otp(phone_number, otp):
+                return Response(
+                    {"message": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST
+                )
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        # Send OTP to user's phone number
+        return self.send_otp(phone_number, validated_data)
+
+    def verify_otp(self, phone_number, otp):
+        try:
+            otp_obj = OTP.objects.get(phone_number=phone_number, otp=otp)
+            return otp_obj.is_valid()
+        except OTP.DoesNotExist:
+            return False
+
+    def send_otp(self, phone_number, validated_data):
+        otp = generate_otp()
+        try:
+            otp_obj = OTP.objects.get(phone_number=phone_number)
+            if not otp_obj.is_eligible_for_renewal():
+                return Response(
+                    {"message": "Please wait before requesting a new OTP"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            otp = otp_obj.renew()
+        except OTP.DoesNotExist:
+            OTP.objects.create(phone_number=phone_number, otp=otp)
+
+        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        message = client.messages.create(
+            from_=TWILIO_PHONE_NUMBER,
+            to=str(phone_number),
+            body=f"Your OTP is {otp}",
+        )
+        print(f"OTP sent to {phone_number} - {message.sid}")
+        validated_data["phone_number"] = str(phone_number)
+        return Response(
+            {
+                "data": validated_data,
+                "message": "OTP sent as text to phone number, verify to save data",
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class UserPasswordView(generics.GenericAPIView):

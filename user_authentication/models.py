@@ -1,3 +1,4 @@
+import random
 import secrets
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, AbstractUser
@@ -6,6 +7,7 @@ from django.utils import timezone
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+from phonenumber_field.modelfields import PhoneNumberField
 
 
 from .managers import UserManager
@@ -30,8 +32,12 @@ class User(AbstractBaseUser, PermissionsMixin):
             "unique": _("A user with that username already exists."),
         },
     )
-    first_name = models.CharField(_("first name"), max_length=150, blank=True)
-    last_name = models.CharField(_("last name"), max_length=150, blank=True)
+    full_name = models.CharField(_("full name"), max_length=301, blank=True)
+    country = models.CharField(_("country"), max_length=100, blank=True)
+    city = models.CharField(_("city"), max_length=100, blank=True)
+    address = models.CharField(_("address"), max_length=300, blank=True)
+    zip_code = models.CharField(_("zip code"), blank=True, null=True)
+    phone_number = PhoneNumberField(_("phone number"), blank=True, null=True)
     is_staff = models.BooleanField(
         _("staff status"),
         default=False,
@@ -45,13 +51,6 @@ class User(AbstractBaseUser, PermissionsMixin):
             "Unselect this instead of deleting accounts."
         ),
     )
-    is_email_verified = models.BooleanField(_("email verified"), default=False)
-    email_verification_token = models.CharField(
-        _("verification token"), blank=True, null=True, max_length=150
-    )
-    email_verification_token_created_at = models.DateTimeField(
-        _("token created at"), blank=True, null=True
-    )
     password_reset_token = models.CharField(
         _("password reset token"), blank=True, null=True, max_length=150
     )
@@ -59,7 +58,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         _("token created at"), blank=True, null=True
     )
     date_joined = models.DateTimeField(_("date joined"), default=timezone.now)
-    REQUIRED_FIELDS = ["first_name", "last_name"]
     USERNAME_FIELD = "email"
     EMAIL_FIELD = "email"
 
@@ -103,39 +101,6 @@ class User(AbstractBaseUser, PermissionsMixin):
             html_message=html_message,
         )
 
-    def generate_email_verification_token(self):
-        """
-        Generate a unique email verification token for the user.
-        """
-        token = secrets.token_hex(16)
-        self.email_verification_token = token
-        self.email_verification_token_created_at = timezone.now()
-        self.save(
-            update_fields=[
-                "email_verification_token",
-                "email_verification_token_created_at",
-            ]
-        )
-        return token
-
-    def is_email_verification_token_valid(self):
-        if not self.email_verification_token_created_at:
-            return False
-        expiry_duration = timezone.timedelta(minutes=5)
-        expiry_time = self.email_verification_token_created_at + expiry_duration
-        return timezone.now() <= expiry_time
-
-    def verify_email(self):
-        if self.is_email_verified:
-            raise EmailAlreadyVerifiedError("The email is already verified.")
-        if not self.is_email_verification_token_valid():
-            raise InvalidVerificationTokenError(
-                "The email verification token has expired. Sign up again to get a new one."
-            )
-        self.is_email_verified = True
-        self.save(update_fields=["is_email_verified"])
-        return self.is_email_verified
-
     def __str__(self):
         return self.email
 
@@ -143,9 +108,34 @@ class User(AbstractBaseUser, PermissionsMixin):
         """
         Return the first_name plus the last_name, with a space in between.
         """
-        full_name = "%s %s" % (self.first_name, self.last_name)
-        return full_name.strip()
+        return self.full_name
 
     def get_short_name(self):
         """Return the short name for the user."""
-        return self.first_name
+        return self.full_name
+
+
+class OTP(models.Model):
+    email = models.EmailField(_("email address"), blank=True, null=True)
+    phone_number = PhoneNumberField(_("phone number"), blank=True, null=True)
+    otp = models.CharField(max_length=6)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return self.otp
+
+    def is_valid(self):
+        expiry_duration = timezone.timedelta(minutes=5)
+        expiry_time = self.created_at + expiry_duration
+        return timezone.now() <= expiry_time
+
+    def is_eligible_for_renewal(self):
+        expiry_duration = timezone.timedelta(minutes=1)
+        expiry_time = self.created_at + expiry_duration
+        return timezone.now() >= expiry_time
+
+    def renew(self):
+        self.otp = str(random.randint(100000, 999999))
+        self.created_at = timezone.now()
+        self.save(update_fields=["otp", "created_at"])
+        return self.otp

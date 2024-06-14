@@ -3,7 +3,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
 
 from .forms import CustomUserCreationForm, CustomUserChangeForm
-from .models import User
+from .models import User, OTP
 
 
 @admin.register(User)
@@ -12,7 +12,19 @@ class UserAdmin(BaseUserAdmin):
     add_form = CustomUserCreationForm
     fieldsets = (
         (None, {"fields": ("email", "password")}),
-        (_("Personal info"), {"fields": ("first_name", "last_name")}),
+        (
+            _("Personal info"),
+            {
+                "fields": (
+                    "full_name",
+                    "country",
+                    "city",
+                    "address",
+                    "zip_code",
+                    "phone_number",
+                )
+            },
+        ),
         (
             _("Permissions"),
             {
@@ -20,7 +32,6 @@ class UserAdmin(BaseUserAdmin):
                     "is_active",
                     "is_staff",
                     "is_superuser",
-                    "is_email_verified",
                     "groups",
                     "user_permissions",
                 ),
@@ -37,19 +48,48 @@ class UserAdmin(BaseUserAdmin):
                     "email",
                     "password1",
                     "password2",
-                    "first_name",
-                    "last_name",
+                    "full_name",
+                    "country",
+                    "city",
+                    "address",
+                    "zip_code",
+                    "phone_number",
                 ),
             },
         ),
     )
     list_display = (
         "email",
-        "first_name",
-        "last_name",
+        "full_name",
+        "country",
+        "city",
+        "address",
+        "zip_code",
+        "phone_number",
         "is_staff",
         "is_active",
-        "is_email_verified",
     )
-    search_fields = ("email", "first_name", "last_name")
-    ordering = ("email",)
+    search_fields = (
+        "email",
+        "full_name",
+        "country",
+        "city",
+        "address",
+        "zip_code",
+        "phone_number",
+    )
+    ordering = (
+        "email",
+        "full_name",
+        "country",
+        "city",
+        "address",
+        "zip_code",
+    )
+
+
+@admin.register(OTP)
+class OTPAdmin(admin.ModelAdmin):
+    list_display = ("email", "phone_number", "otp", "created_at")
+    search_fields = ("email", "phone_number", "otp")
+    ordering = ("email", "phone_number", "otp")
