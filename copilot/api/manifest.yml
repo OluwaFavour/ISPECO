@@ -11,6 +11,8 @@ http:
   # Requests to this path will be forwarded to your service.
   # To match all requests you can use the "/" path.
   path: "/"
+  # Set up a custom domain name for the service.
+  alias: api.ispecocloud.com
   # You can specify a custom health check path. The default is "/".
   healthcheck:
     path: "/"
