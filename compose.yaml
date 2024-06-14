@@ -16,7 +16,7 @@ services:
     image: ispeco:${TAG}
     container_name: ispeco
     environment:
-      - DEBUG=${DEBUG}
+      - DEBUG=False
       - ALLOWED_HOSTS=${ALLOWED_HOSTS}
       - EMAIL_HOST=${EMAIL_HOST}
       - EMAIL_PORT=${EMAIL_PORT}
@@ -25,6 +25,9 @@ services:
       - SERVER_EMAIL=${SERVER_EMAIL}
       - ISPECO_SERVER_URL=${ISPECO_SERVER_URL}
       - DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE}
+      - CSRF_COOKIE_SECURE=${CSRF_COOKIE_SECURE}
+      - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE}
+      - SECURE_SSL_REDIRECT=${SECURE_SSL_REDIRECT}
     secrets:
       - database_url
       - secret_key
