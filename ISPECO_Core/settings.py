@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "user_authentication",
     "camera_integration",
     "live_streaming",
+    "payment",
 ]
 
 MIDDLEWARE = [
