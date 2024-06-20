@@ -6,6 +6,8 @@ db.sqlite3
 update.md
 staticfiles/
 secrets/
+.secrets/
+.vscode/
 *.txt
 load_secrets.sh
 entry.bat
