@@ -87,7 +87,7 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # CORS Settings
 CORS_ALLOWED_ORIGINS = [
-    "https://api.prod.api.ispecocloud.com",
+    "https://api.ispecocloud.com",
     "http://localhost:3000",
     "http://localhost:8000",
     "https://ispecocloud.com",
@@ -166,8 +166,6 @@ TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
 # Paypal settings
 PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID")
 PAYPAL_SECRET = os.getenv("PAYPAL_SECRET")
-PAYPAL_RETURN_URL = os.getenv("PAYPAL_RETURN_URL")
-PAYPAL_CANCEL_URL = os.getenv("PAYPAL_CANCEL_URL")
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
