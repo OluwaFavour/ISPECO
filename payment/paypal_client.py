@@ -1,10 +1,7 @@
-from itertools import product
-from os import access
 from typing import Any, Dict, Union, Optional
 import requests
-import json
 
-# from ISPECO_Core.settings import PAYPAL_CLIENT_ID, PAYPAL_SECRET
+from ISPECO_Core.settings import PAYPAL_CLIENT_ID, PAYPAL_SECRET
 
 
 class PayPalClient:
@@ -29,8 +26,8 @@ class PayPalClient:
     """
 
     def __init__(self):
-        self.client_id = "AVtlg1rr-xpHOefnH3S8uY1YaW8SYhO7WgtB1kMkFMKfONzi-wnJN_bWMrneC08xloEjIHDxb3qykOV0"  # PAYPAL_CLIENT_ID
-        self.secret = "EA14qG8cIBktGCDEusCe-DjQFA242Hq02KeBEEno43g9i4Jr7KD7L_b9qtf3kVVsRYifLMd-uwKN_icr"  # PAYPAL_SECRET
+        self.client_id = PAYPAL_CLIENT_ID
+        self.secret = PAYPAL_SECRET
         self.base_url = "https://api-m.sandbox.paypal.com"  # Use 'https://api-m.paypal.com' for production
 
     def get_access_token(self) -> str:
