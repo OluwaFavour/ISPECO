@@ -139,3 +139,36 @@ class OTP(models.Model):
         self.created_at = timezone.now()
         self.save(update_fields=["otp", "created_at"])
         return self.otp
+
+
+class UserAccess(models.Model):
+    USER_ROLE_CHOICES = [
+        ("admin", "Admin"),
+        ("viewer", "Viewer"),
+        ("other", "Other"),
+    ]
+    CAMERA_ACCESS_CHOICES = [
+        ("indoor", "Indoor"),
+        ("outdoor", "Outdoor"),
+        ("both", "Both"),
+    ]
+    NOTIFICATION_ACCESS_CHOICES = [("yes", "Yes"), ("no", "No")]
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="accesses")
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="granted_accesses"
+    )
+    user_role = models.CharField(
+        _("user role"), max_length=10, choices=USER_ROLE_CHOICES
+    )
+    camera_access = models.CharField(
+        _("camera access"), max_length=10, choices=CAMERA_ACCESS_CHOICES
+    )
+    notification_access = models.CharField(
+        _("notification access"), max_length=3, choices=NOTIFICATION_ACCESS_CHOICES
+    )
+
+    class Meta:
+        unique_together = ("owner", "user")
+
+    def __str__(self):
+        return f"{self.user.email} - {self.user_role}"

@@ -1,4 +1,7 @@
-from django.contrib.auth import login
+import re
+from attr import validate
+from typing import List
+from django.contrib.auth import login, authenticate
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
@@ -9,7 +12,13 @@ from rest_framework import serializers
 from knox.views import LoginView as KnoxLoginView
 from drf_spectacular.utils import extend_schema, inline_serializer
 from drf_spectacular.types import OpenApiTypes
-from .models import User, EmailAlreadyVerifiedError, InvalidVerificationTokenError, OTP
+from .models import (
+    User,
+    EmailAlreadyVerifiedError,
+    InvalidVerificationTokenError,
+    OTP,
+    UserAccess,
+)
 from .serializers import (
     LoginOutSerializer,
     PasswordResetSerializer,
@@ -22,8 +31,7 @@ from .serializers import (
     PasswordUpdateSerializer,
     EmailSerializer,
     EmailOTPSerializer,
-    PhoneSerializer,
-    PhoneOTPSerializer,
+    UserAccessSerializer,
 )
 from .utils import generate_otp
 from ISPECO_Core.settings import (
@@ -445,4 +453,107 @@ class PasswordResetView(generics.GenericAPIView):
         return Response(
             {"message": "Invalid password reset token"},
             status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+class UserAccessListCreateView(generics.GenericAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = UserAccessSerializer
+
+    def get(self, request, *args, **kwargs):
+        owner = request.user
+        user_accesses: List[UserAccess] = owner.accesses.all()
+        data = {
+            "user_accesses": [
+                {
+                    "id": user_access.id,
+                    "user_full_name": user_access.user.full_name,
+                    "user_email": user_access.user.email,
+                    "user_phone_number": user_access.user.phone_number,
+                    "user_role": user_access.user_role,
+                    "camera_access": user_access.camera_access,
+                    "notification_access": user_access.notification_access,
+                }
+                for user_access in user_accesses
+            ]
+        }
+        return Response(data, status=status.HTTP_200_OK)
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            user_access = serializer.save()
+            data = {
+                "id": user_access.id,
+                "user_full_name": user_access.user.full_name,
+                "user_email": user_access.user.email,
+                "user_phone_number": user_access.user.phone_number,
+                "user_role": user_access.user_role,
+                "camera_access": user_access.camera_access,
+                "notification_access": user_access.notification_access,
+            }
+            return Response(data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserAccessRetrieveUpdateDestroyView(generics.GenericAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = UserAccessSerializer
+
+    def get(self, request, *args, **kwargs):
+        owner = request.user
+        user_access_id = kwargs.get("id")
+        try:
+            user_access = owner.accesses.get(id=user_access_id)
+        except UserAccess.DoesNotExist:
+            return Response(
+                {"message": "User access not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        data = {
+            "id": user_access.id,
+            "user_full_name": user_access.user.full_name,
+            "user_email": user_access.user.email,
+            "user_phone_number": user_access.user.phone_number,
+            "user_role": user_access.user_role,
+            "camera_access": user_access.camera_access,
+            "notification_access": user_access.notification_access,
+        }
+        return Response(data, status=status.HTTP_200_OK)
+
+    def patch(self, request, *args, **kwargs):
+        owner = request.user
+        user_access_id = kwargs.get("id")
+        try:
+            user_access = owner.accesses.get(id=user_access_id)
+        except UserAccess.DoesNotExist:
+            return Response(
+                {"message": "User access not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        serializer = self.get_serializer(user_access, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        data = {
+            "id": user_access.id,
+            "user_full_name": user_access.user.full_name,
+            "user_email": user_access.user.email,
+            "user_phone_number": user_access.user.phone_number,
+            "user_role": user_access.user_role,
+            "camera_access": user_access.camera_access,
+            "notification_access": user_access.notification_access,
+        }
+        return Response(data, status=status.HTTP_200_OK)
+
+    def delete(self, request, *args, **kwargs):
+        owner = request.user
+        user_access_id = kwargs.get("id")
+        try:
+            user_access = owner.accesses.get(id=user_access_id)
+        except UserAccess.DoesNotExist:
+            return Response(
+                {"message": "User access not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        user_access.delete()
+        return Response(
+            {"message": "User access deleted successfully"},
+            status=status.HTTP_204_NO_CONTENT,
         )

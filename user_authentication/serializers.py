@@ -1,6 +1,7 @@
+import email
 from django.contrib.auth import authenticate
 from .forms import CustomUserCreationForm
-from .models import User, OTP
+from .models import User, OTP, UserAccess
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from phonenumber_field.serializerfields import PhoneNumberField
@@ -149,7 +150,6 @@ class EmailAuthTokenSerializer(serializers.Serializer):
             user = authenticate(
                 request=self.context.get("request"), email=email, password=password
             )
-            print(user)
             if not user:
                 msg = _("Unable to log in with provided credentials.")
                 raise serializers.ValidationError(msg, code="authorization")
@@ -252,3 +252,104 @@ class PasswordResetSerializer(serializers.Serializer):
         user.set_password(self.validated_data["password1"])
         user.save()
         return user
+
+
+class UserAccessSerializer(serializers.Serializer):
+    USER_ROLE_CHOICES = [
+        ("admin", "Admin"),
+        ("viewer", "Viewer"),
+        ("other", "Other"),
+    ]
+    CAMERA_ACCESS_CHOICES = [
+        ("indoor", "Indoor"),
+        ("outdoor", "Outdoor"),
+        ("both", "Both"),
+    ]
+    NOTIFICATION_ACCESS_CHOICES = [("yes", "Yes"), ("no", "No")]
+    owner = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    user_full_name = serializers.CharField(max_length=300)
+    user_email = serializers.EmailField()
+    user_phone_number = PhoneNumberField()
+    user_role = serializers.ChoiceField(choices=USER_ROLE_CHOICES)
+    camera_access = serializers.ChoiceField(choices=CAMERA_ACCESS_CHOICES)
+    notification_access = serializers.ChoiceField(choices=NOTIFICATION_ACCESS_CHOICES)
+    password1 = serializers.CharField(
+        max_length=128, write_only=True, style={"input_type": "password"}
+    )
+    password2 = serializers.CharField(
+        max_length=128, write_only=True, style={"input_type": "password"}
+    )
+
+    def validate_user_email(self, value):
+        if not User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("Email address does not exist.")
+        return value
+
+    def validate(self, data):
+        # Check if passwords match
+        if data["password1"] != data["password2"]:
+            raise serializers.ValidationError(
+                {"password2": _("The two password fields didn't match.")},
+                code="authorization",
+            )
+
+        # Validate user details
+        user_email = data["user_email"]
+        user_full_name = data["user_full_name"]
+        user_phone_number = data["user_phone_number"]
+        if not User.objects.filter(
+            email=user_email,
+            full_name=user_full_name,
+            phone_number=user_phone_number,
+        ).exists():
+            raise serializers.ValidationError(
+                "Invalid user details. Check the email, full name, and phone number."
+            )
+
+        # Authenticate user
+        user = authenticate(
+            request=self.context.get("request"),
+            email=email,
+            password=data["password1"],
+        )
+        if not user:
+            raise serializers.ValidationError(
+                "Invalid login credentials.", code="authorization"
+            )
+
+        # Check if user already has access to the owner's account
+        owner = data["owner"]
+        if UserAccess.objects.filter(owner=owner, user=user).exists():
+            raise serializers.ValidationError(
+                "User already has access to the owner's account.", code="bad_request"
+            )
+        data["user"] = user
+
+        return data
+
+    def create(self, validated_data):
+        owner = validated_data["owner"]
+        user = validated_data["user"]
+        user_role = validated_data["user_role"]
+        camera_access = validated_data["camera_access"]
+        notification_access = validated_data["notification_access"]
+
+        user_access = UserAccess.objects.create(
+            owner=owner,
+            user=user,
+            user_role=user_role,
+            camera_access=camera_access,
+            notification_access=notification_access,
+        )
+        return user_access
+
+    def update(self, instance, validated_data):
+        instance.user_role = validated_data.get("user_role", instance.user_role)
+        instance.camera_access = validated_data.get(
+            "camera_access", instance.camera_access
+        )
+        instance.notification_access = validated_data.get(
+            "notification_access", instance.notification_access
+        )
+        instance.save()
+        return instance
