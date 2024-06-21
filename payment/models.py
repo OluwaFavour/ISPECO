@@ -59,6 +59,7 @@ class Subscription(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     plan = models.ForeignKey(Plan, on_delete=models.CASCADE)
     card = models.ForeignKey(Card, on_delete=models.SET_NULL, blank=True, null=True)
+    payer_email = models.EmailField(blank=True, null=True)
     start_date = models.DateTimeField(default=timezone.now)
     end_date = models.DateTimeField()
     payment_method = models.CharField(max_length=50, choices=PAYMENT_METHOD_CHOICES)
