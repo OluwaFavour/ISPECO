@@ -1,3 +1,4 @@
+from ast import Not
 import re
 from attr import validate
 from typing import List
@@ -8,11 +9,13 @@ from django.utils.html import strip_tags
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
+from rest_framework.exceptions import NotFound
 from rest_framework import serializers
 from knox.views import LoginView as KnoxLoginView
 from drf_spectacular.utils import extend_schema, inline_serializer
 from drf_spectacular.types import OpenApiTypes
 from .models import (
+    Notification,
     User,
     EmailAlreadyVerifiedError,
     InvalidVerificationTokenError,
@@ -21,6 +24,7 @@ from .models import (
 )
 from .serializers import (
     LoginOutSerializer,
+    NotificationSerializer,
     PasswordResetSerializer,
     UserInSerializer,
     UserOutSerializer,
@@ -557,3 +561,32 @@ class UserAccessRetrieveUpdateDestroyView(generics.GenericAPIView):
             {"message": "User access deleted successfully"},
             status=status.HTTP_204_NO_CONTENT,
         )
+
+
+class NotificationListView(generics.ListAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = NotificationSerializer
+
+    def get_queryset(self):
+        return self.request.user.notifications.all()
+
+
+class NotificationRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = NotificationSerializer
+
+    def get_queryset(self):
+        return self.request.user.notifications.all()
+
+    def get_object(self):
+        queryset = self.get_queryset()
+        obj = generics.get_object_or_404(queryset, pk=self.kwargs.get("pk"))
+        return obj
+
+
+class NotificationCreateView(generics.CreateAPIView):
+    permission_classes = (permissions.IsAdminUser,)
+    serializer_class = NotificationSerializer
+
+    def perform_create(self, serializer):
+        serializer.save()

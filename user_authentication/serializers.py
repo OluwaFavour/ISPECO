@@ -1,7 +1,9 @@
 import email
+from operator import is_
 from django.contrib.auth import authenticate
+from django.utils import timezone
 from .forms import CustomUserCreationForm
-from .models import User, OTP, UserAccess
+from .models import Notification, User, OTP, UserAccess
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from phonenumber_field.serializerfields import PhoneNumberField
@@ -351,5 +353,22 @@ class UserAccessSerializer(serializers.Serializer):
         instance.notification_access = validated_data.get(
             "notification_access", instance.notification_access
         )
+        instance.save()
+        return instance
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+
+    class Meta:
+        model = Notification
+        fields = "__all__"
+        read_only_fields = ["created_at"]
+
+    def create(self, validated_data):
+        return Notification.objects.create(**validated_data)
+
+    def update(self, instance, validated_data):
+        instance.is_read = validated_data.get("is_read", instance.is_read)
         instance.save()
         return instance

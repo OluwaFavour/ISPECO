@@ -13,6 +13,9 @@ from .views import (
     VerifyEmailOTPView,
     UserAccessListCreateView,
     UserAccessRetrieveUpdateDestroyView,
+    NotificationCreateView,
+    NotificationRetrieveUpdateDestroyView,
+    NotificationListCreateView,
 )
 
 urlpatterns = [
@@ -36,5 +39,15 @@ urlpatterns = [
         "user/user-access/<int:pk>/",
         UserAccessRetrieveUpdateDestroyView.as_view(),
         name="user_access_detail",
+    ),
+    path(
+        "user/notifications/",
+        NotificationListCreateView.as_view(),
+        name="notifications",
+    ),
+    path(
+        "user/notifications/<int:pk>/",
+        NotificationRetrieveUpdateDestroyView.as_view(),
+        name="notification",
     ),
 ]

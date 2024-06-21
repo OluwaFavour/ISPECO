@@ -172,3 +172,16 @@ class UserAccess(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.user_role}"
+
+
+class Notification(models.Model):
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="notifications"
+    )
+    title = models.CharField(_("title"), max_length=100)
+    message = models.TextField(_("message"))
+    is_read = models.BooleanField(_("is read"), default=False)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"{self.user.email} - {self.title}"
