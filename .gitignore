@@ -12,3 +12,4 @@ secrets/
 load_secrets.sh
 entry.bat
 docker_entrypoint.sh
+create_paypal_plans.py
