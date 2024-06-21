@@ -6,7 +6,7 @@ from django.core.validators import RegexValidator, URLValidator
 from rest_framework import serializers
 
 from user_authentication.models import User
-from .models import Plan, Transaction, Product
+from .models import Plan, Subscription, Transaction, Product
 from phonenumber_field.serializerfields import PhoneNumberField
 
 
@@ -190,13 +190,10 @@ class CardSerializer(serializers.Serializer):
             raise serializers.ValidationError("Card has expired")
 
 
-class SubscriptionSerializer(serializers.Serializer):
+class SubscriptionInSerializer(serializers.Serializer):
     system_setup_data = SystemSetUpSerializer()
     card = CardSerializer(required=False)
-    paypal_subscription_id = serializers.CharField(read_only=True)
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
-    start_date = serializers.DateTimeField(read_only=True)
-    end_date = serializers.DateTimeField(read_only=True)
     plan = serializers.PrimaryKeyRelatedField(queryset=Plan.objects.all())
     quantity = serializers.IntegerField(default=1)
     payment_method = serializers.CharField(max_length=11)
@@ -211,6 +208,12 @@ class SubscriptionSerializer(serializers.Serializer):
             if not value:
                 raise serializers.ValidationError("Card details are required")
         return value
+
+
+class SubscriptionOutSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Subscription
+        fields = "__all__"
 
 
 class TransactionSerializer(serializers.ModelSerializer):
