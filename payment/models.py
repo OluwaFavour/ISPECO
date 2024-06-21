@@ -52,12 +52,16 @@ class Card(models.Model):
 
 
 class Subscription(models.Model):
+    PAYMENT_METHOD_CHOICES = [
+        ("paypal", "PayPal"),
+        ("credit_card", "Credit Card"),
+    ]
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     plan = models.ForeignKey(Plan, on_delete=models.CASCADE)
     card = models.ForeignKey(Card, on_delete=models.SET_NULL, blank=True, null=True)
     start_date = models.DateTimeField(default=timezone.now)
     end_date = models.DateTimeField()
-    auto_renew = models.BooleanField(default=True)
+    payment_method = models.CharField(max_length=50, choices=PAYMENT_METHOD_CHOICES)
     paypal_subscription_id = models.CharField(max_length=50, blank=True, null=True)
 
     def __str__(self):
@@ -68,7 +72,6 @@ class TemporarySubscriptionData(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     plan = models.ForeignKey(Plan, on_delete=models.CASCADE)
     system_setup_data = models.JSONField()
-    auto_renew = models.BooleanField(default=True)
     quantity = models.IntegerField(default=1)
     paypal_subscription_id = models.CharField(max_length=50, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)

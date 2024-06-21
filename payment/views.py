@@ -10,6 +10,7 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 
 from camera_integration.models import Camera, CameraSetup
+import payment
 from user_authentication.models import User
 from .models import (
     Card,
@@ -246,7 +247,6 @@ class SubscriptionView(generics.GenericAPIView):
                 plan,
                 system_setup_data,
                 card,
-                auto_renew,
                 quantity,
                 payment_method,
                 return_url,
@@ -278,7 +278,6 @@ class SubscriptionView(generics.GenericAPIView):
         plan,
         system_setup_data,
         card,
-        auto_renew,
         quantity,
         payment_method,
         return_url,
@@ -309,7 +308,6 @@ class SubscriptionView(generics.GenericAPIView):
             plan_id=plan.paypal_plan_id,
             return_url=return_url,
             cancel_url=cancel_url,
-            auto_renew=True,
             quantity=quantity,
             payment_method=payment_method,
             subscriber=subscriber,
@@ -331,7 +329,7 @@ class SubscriptionView(generics.GenericAPIView):
                     card,
                     start_date,
                     end_date,
-                    auto_renew,
+                    payment_method,
                     paypal_subscription_id,
                 )
                 self._create_transaction(
@@ -361,7 +359,14 @@ class SubscriptionView(generics.GenericAPIView):
         )
 
     def _create_subscription(
-        self, user, plan, card, start_date, end_date, auto_renew, paypal_subscription_id
+        self,
+        user,
+        plan,
+        card,
+        start_date,
+        end_date,
+        payment_method,
+        paypal_subscription_id,
     ):
         return Subscription.objects.create(
             user=user,
@@ -369,7 +374,7 @@ class SubscriptionView(generics.GenericAPIView):
             card=card,
             start_date=start_date,
             end_date=end_date,
-            auto_renew=auto_renew,
+            payment_method=payment_method,
             paypal_subscription_id=paypal_subscription_id,
         )
 
@@ -458,7 +463,7 @@ class PayPalReturnView(generics.GenericAPIView):
             card=None,
             start_date=start_date,
             end_date=end_date,
-            auto_renew=temp_data.auto_renew,
+            payment_method="paypal",
             paypal_subscription_id=temp_data.paypal_subscription_id,
         )
 

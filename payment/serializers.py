@@ -194,7 +194,6 @@ class SubscriptionSerializer(serializers.Serializer):
     system_setup_data = SystemSetUpSerializer()
     card = CardSerializer(required=False)
     paypal_subscription_id = serializers.CharField(read_only=True)
-    auto_renew = serializers.BooleanField(default=True)
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
     start_date = serializers.DateTimeField(read_only=True)
     end_date = serializers.DateTimeField(read_only=True)
