@@ -11,6 +11,8 @@ from .views import (
     ForgotPasswordView,
     SendEmailOTPView,
     VerifyEmailOTPView,
+    UserAccessListCreateView,
+    UserAccessRetrieveUpdateDestroyView,
 )
 
 urlpatterns = [
@@ -27,4 +29,12 @@ urlpatterns = [
     path("user/", UserView.as_view(), name="get_user"),
     path("user/update/", UpdateUserView.as_view(), name="update_user"),
     path("user/change-password/", UserPasswordView.as_view(), name="update_password"),
+    path(
+        "user/user-access/", UserAccessListCreateView.as_view(), name="user_access_list"
+    ),
+    path(
+        "user/user-access/<int:pk>/",
+        UserAccessRetrieveUpdateDestroyView.as_view(),
+        name="user_access_detail",
+    ),
 ]
