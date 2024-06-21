@@ -10,23 +10,19 @@ class AddCameraForm(forms.ModelForm):
     """
 
     url = forms.URLField(
-        validators=[
-            URLValidator(schemes=["http", "https", "rtsp", "rtmp", "rtsps", "rtspu"])
-        ],
+        validators=[URLValidator(schemes=["http", "https", "rtsp"])],
         help_text="Enter the URL of the camera stream. usually in this format rtsp://[username:password@]ip_address[:rtsp_port]/server_URL[[?param1=val1[?param2=val2]…[?paramN=valN]]",
     )
-    password = forms.CharField(max_length=100, widget=forms.PasswordInput())
 
     class Meta:
         model = Camera
         fields = [
-            "name",
-            "username",
-            "ip_address",
+            "brand",
+            "camera_type",
+            "resolution",
+            "industry_type",
             "url",
-            "password",
-            "port",
-            "model",
+            "environment",
             "user",
         ]
 
@@ -36,7 +32,6 @@ class AddCameraForm(forms.ModelForm):
             raise ValueError("User must be set before saving the form.")
         camera.user = self.cleaned_data["user"]
         camera.url = self.cleaned_data["url"]
-        camera.password = self.cleaned_data["password"]
         if commit:
             camera.save()
         return camera
