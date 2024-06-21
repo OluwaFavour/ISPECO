@@ -23,7 +23,8 @@ from .models import (
 from .serializers import (
     PlanSerializer,
     PlanUpdateSerializer,
-    SubscriptionSerializer,
+    SubscriptionInSerializer,
+    SubscriptionOutSerializer,
     TransactionSerializer,
     ProductSerializer,
 )
@@ -214,14 +215,8 @@ class PlanUpdateView(generics.UpdateAPIView):
 
 
 class SubscriptionView(generics.GenericAPIView):
-    serializer_class = SubscriptionSerializer
+    serializer_class = SubscriptionInSerializer
     permission_classes = [IsAuthenticated]
-
-    def get(self, request, *args, **kwargs):
-        subscriptions = Subscription.objects.filter(user=request.user)
-        if subscriptions.exists():
-            serializer = SubscriptionSerializer(subscriptions, many=True)
-        return Response(serializer.data)
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -232,7 +227,6 @@ class SubscriptionView(generics.GenericAPIView):
         plan = validated_data["plan"]
         system_setup_data = validated_data["system_setup_data"]
         card = validated_data.get("card")
-        auto_renew = validated_data["auto_renew"]
         quantity = validated_data["quantity"]
         payment_method = validated_data["payment_method"]
 
@@ -264,7 +258,6 @@ class SubscriptionView(generics.GenericAPIView):
                 user=user,
                 plan=plan,
                 system_setup_data=system_setup_data,
-                auto_renew=auto_renew,
                 quantity=quantity,
                 paypal_subscription_id=paypal_subscription_id,
             )
@@ -274,8 +267,8 @@ class SubscriptionView(generics.GenericAPIView):
 
     def _process_payment(
         self,
-        user,
-        plan,
+        user: User,
+        plan: Plan,
         system_setup_data,
         card,
         quantity,
@@ -372,6 +365,7 @@ class SubscriptionView(generics.GenericAPIView):
             user=user,
             plan=plan,
             card=card,
+            payer_email=None,
             start_date=start_date,
             end_date=end_date,
             payment_method=payment_method,
@@ -413,6 +407,15 @@ class SubscriptionView(generics.GenericAPIView):
             )
 
 
+class SubscriptionDetailView(generics.RetrieveAPIView):
+    queryset = Subscription.objects.all()
+    serializer_class = SubscriptionOutSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Subscription.objects.filter(user=self.request.user)
+
+
 # Paypal return and view
 class PayPalReturnView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated]
@@ -436,8 +439,13 @@ class PayPalReturnView(generics.GenericAPIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        paypal_client = PayPalClient()
         try:
-            subscription = self._create_subscription(temp_data)
+            subscription_details = paypal_client.get_subscription(
+                paypal_subscription_id
+            )
+            payer_email = subscription_details["subscriber"]["email_address"]
+            subscription = self._create_subscription(temp_data, payer_email)
             self._create_transaction(temp_data, subscription)
             self._handle_system_setup(temp_data)
 
@@ -450,7 +458,7 @@ class PayPalReturnView(generics.GenericAPIView):
         temp_data.delete()
         return Response({"message": "Subscription activated successfully"})
 
-    def _create_subscription(self, temp_data):
+    def _create_subscription(self, temp_data, payer_email):
         plan = temp_data.plan
         start_date = timezone.now()
         end_date = start_date + timezone.timedelta(
@@ -463,6 +471,7 @@ class PayPalReturnView(generics.GenericAPIView):
             card=None,
             start_date=start_date,
             end_date=end_date,
+            payer_email=payer_email,
             payment_method="paypal",
             paypal_subscription_id=temp_data.paypal_subscription_id,
         )
