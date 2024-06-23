@@ -1,5 +1,4 @@
 from django.conf import settings
-from django.core.validators import URLValidator
 from django.db import models
 from user_authentication.models import User
 
@@ -12,6 +11,7 @@ class Camera(models.Model):
 
     Attributes:
         user (User): The user who owns the camera.
+        name (str): The name of the camera.
         camera_type (str): The type of the camera.
         industry_type (str): The industry type the camera is used in.
         environment (str): The environment the camera is used in.

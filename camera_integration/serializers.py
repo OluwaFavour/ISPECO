@@ -2,7 +2,6 @@ from rest_framework import serializers
 from django.core.validators import URLValidator
 
 from .forms import AddCameraForm
-from .models import Camera
 
 
 class CameraOutSerializer(serializers.Serializer):
