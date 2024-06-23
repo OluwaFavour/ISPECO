@@ -10,7 +10,6 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 
 from camera_integration.models import Camera, CameraSetup
-import payment
 from user_authentication.models import User
 from .models import (
     Card,
@@ -26,192 +25,14 @@ from .serializers import (
     SubscriptionInSerializer,
     SubscriptionOutSerializer,
     TransactionSerializer,
-    ProductSerializer,
 )
 from .paypal_client import PayPalClient
 from django.utils import timezone
 
 
-class ProductListCreateView(generics.ListCreateAPIView):
-    queryset = Product.objects.all()
-    serializer_class = ProductSerializer
-    permission_classes = [IsAdminUser]
-
-    def create(self, request, *args, **kwargs):
-        # Deserialize the incoming request data
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        # Extract validated data
-        validated_data = serializer.validated_data
-        name = validated_data.get("name")
-        description = validated_data.get("description")
-
-        # Initialize PayPal client and create product
-        paypal_client = PayPalClient()
-        try:
-            paypal_product = paypal_client.create_product(
-                name=name, description=description
-            )
-            paypal_product_id = paypal_product.get("id")
-        except Exception as e:
-            return Response(
-                {"error": "Failed to create product in PayPal", "details": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-        # Create and save the Product instance
-        product = Product.objects.create(
-            name=name, description=description, paypal_product_id=paypal_product_id
-        )
-
-        # Serialize and return the created product
-        serializer = self.get_serializer(product)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-
-class ProductDetailUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Product.objects.all()
-    serializer_class = ProductSerializer
-    permission_classes = [IsAdminUser]
-
-    def update(self, request, *args, **kwargs):
-        raise MethodNotAllowed(
-            "PUT", detail="PUT method is not allowed. Use PATCH instead."
-        )
-
-    def partial_update(self, request, *args, **kwargs):
-        instance: Product = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        validated_data = serializer.validated_data
-
-        # Check and update description
-        description = validated_data.get("description")
-        if description and description != instance.description:
-            instance.description = description
-
-            # Update the corresponding product in PayPal
-            paypal_client = PayPalClient()
-            try:
-                paypal_client.update_product(
-                    product_id=instance.paypal_product_id,
-                    description=description,
-                )
-            except Exception as e:
-                return Response(
-                    {"error": "Failed to update product in PayPal", "details": str(e)},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
-
-            # Save the instance if PayPal update was successful
-            instance.save()
-
-        # Serialize and return the updated instance
-        serializer = self.get_serializer(instance)
-        return Response(serializer.data)
-
-
 class PlanListView(generics.ListAPIView):
     queryset = Plan.objects.all()
     serializer_class = PlanSerializer
-
-
-class PlanCreateView(generics.CreateAPIView):
-    serializer_class = PlanSerializer
-    permission_classes = [IsAdminUser]
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        validated_data = serializer.validated_data
-        name = validated_data.get("name")
-        billing_cycle = validated_data.get("billing_cycle")
-        price = validated_data.get("price")
-        setup_fee = validated_data.get("setup_fee")
-        currency = validated_data.get("currency")
-        product = validated_data.get("product")
-        description = validated_data.get("description")
-        paypal_product_id = product.paypal_product_id
-        paypal_client = PayPalClient()
-        try:
-            paypal_plan = paypal_client.create_plan(
-                name=name,
-                billing_cycle=billing_cycle,
-                price=price,
-                setup_fee=setup_fee,
-                currency=currency,
-                product_id=paypal_product_id,
-                description=description,
-            )
-            paypal_plan_id = paypal_plan.get("id")
-        except Exception as e:
-            return Response(
-                {"error": "Failed to create plan in PayPal", "details": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-        plan = Plan.objects.create(
-            name=name,
-            billing_cycle=billing_cycle,
-            price=price,
-            setup_fee=setup_fee,
-            currency=currency,
-            product=product,
-            description=description,
-            paypal_plan_id=paypal_plan_id,
-        )
-
-        serializer = self.get_serializer(plan)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-
-class PlanUpdateView(generics.UpdateAPIView):
-    queryset = Plan.objects.all()
-    serializer_class = PlanUpdateSerializer
-    permission_classes = [IsAdminUser]
-
-    def update(self, request, *args, **kwargs):
-        raise MethodNotAllowed(
-            "PUT", detail="PUT method is not allowed. Use PATCH instead."
-        )
-
-    def partial_update(self, request, *args, **kwargs):
-        instance: Plan = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        validated_data = serializer.validated_data
-
-        paypal_updates = {}
-        fields_to_update = [
-            "name",
-            "setup_fee",
-            "description",
-            "auto_renew",
-        ]
-
-        for field in fields_to_update:
-            if field in validated_data:
-                if field == "auto_renew":
-                    paypal_updates[field] = validated_data[field]
-                elif validated_data[field] != getattr(instance, field):
-                    setattr(instance, field, validated_data[field])
-                    paypal_updates[field] = validated_data[field]
-
-        try:
-            if paypal_updates:
-                paypal_client = PayPalClient()
-                paypal_client.update_plan(
-                    plan_id=instance.paypal_plan_id, **paypal_updates
-                )
-
-            instance.save()
-            return Response(self.get_serializer(instance).data)
-
-        except Exception as e:
-            return Response(
-                {"error": "Failed to update plan", "details": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
 
 
 class SubscriptionView(generics.GenericAPIView):
@@ -322,6 +143,7 @@ class SubscriptionView(generics.GenericAPIView):
                     card,
                     start_date,
                     end_date,
+                    quantity,
                     payment_method,
                     paypal_subscription_id,
                 )
@@ -358,6 +180,7 @@ class SubscriptionView(generics.GenericAPIView):
         card,
         start_date,
         end_date,
+        quantity,
         payment_method,
         paypal_subscription_id,
     ):
@@ -368,6 +191,7 @@ class SubscriptionView(generics.GenericAPIView):
             payer_email=None,
             start_date=start_date,
             end_date=end_date,
+            number_of_cameras=quantity,
             payment_method=payment_method,
             paypal_subscription_id=paypal_subscription_id,
         )
@@ -472,6 +296,7 @@ class PayPalReturnView(generics.GenericAPIView):
             start_date=start_date,
             end_date=end_date,
             payer_email=payer_email,
+            number_of_cameras=temp_data.quantity,
             payment_method="paypal",
             paypal_subscription_id=temp_data.paypal_subscription_id,
         )
