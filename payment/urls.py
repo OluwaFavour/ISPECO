@@ -3,26 +3,14 @@ from django.urls import path
 from .views import (
     PayPalCancelView,
     PayPalReturnView,
-    PlanCreateView,
     PlanListView,
-    PlanUpdateView,
-    ProductDetailUpdateDeleteView,
-    ProductListCreateView,
     SubscriptionView,
     TransactionDetailView,
     TransactionListView,
 )
 
 url_patterns = [
-    path("products/", ProductListCreateView.as_view(), name="product-list-create"),
-    path(
-        "products/<int:pk>/",
-        ProductDetailUpdateDeleteView.as_view(),
-        name="product-detail-update-delete",
-    ),
     path("plans/", PlanListView.as_view(), name="plan-list"),
-    path("plans/create/", PlanCreateView.as_view(), name="plan-create"),
-    path("plans/<int:pk>/", PlanUpdateView.as_view(), name="plan-update"),
     path("transactions/", TransactionListView.as_view(), name="transaction-list"),
     path(
         "transactions/<int:pk>/",

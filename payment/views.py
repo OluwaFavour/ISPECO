@@ -6,7 +6,7 @@ from django.shortcuts import redirect
 from rest_framework import generics, status
 from rest_framework import generics, status
 from rest_framework.exceptions import MethodNotAllowed
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from camera_integration.models import Camera, CameraSetup
@@ -14,14 +14,12 @@ from user_authentication.models import User
 from .models import (
     Card,
     Plan,
-    Product,
     Subscription,
     TemporarySubscriptionData,
     Transaction,
 )
 from .serializers import (
     PlanSerializer,
-    PlanUpdateSerializer,
     SubscriptionInSerializer,
     SubscriptionOutSerializer,
     TransactionSerializer,

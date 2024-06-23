@@ -1,6 +1,3 @@
-from enum import auto
-from re import S
-import re
 from django.utils import timezone
 from django.core.validators import RegexValidator, URLValidator
 from rest_framework import serializers
@@ -10,77 +7,10 @@ from .models import Plan, Subscription, Transaction, Product
 from phonenumber_field.serializerfields import PhoneNumberField
 
 
-class ProductSerializer(serializers.ModelSerializer):
-    name = serializers.CharField(max_length=300)
-    paypal_product_id = serializers.CharField(max_length=50, read_only=True)
-
-    class Meta:
-        model = Product
-        fields = "__all__"
-
-    def validate_name(self, value):
-        instance = self.instance
-
-        if instance and instance.name == value:
-            return value
-
-        if Product.objects.filter(name=value).exists():
-            raise serializers.ValidationError("Product with this name already exists")
-        return value
-
-
 class PlanSerializer(serializers.ModelSerializer):
-    PLAN_TIERS = [
-        ("basic", "Basic"),
-        ("standard", "Standard"),
-        ("premium", "Premium"),
-    ]
-    name = serializers.ChoiceField(choices=PLAN_TIERS)
-    paypal_plan_id = serializers.CharField(read_only=True)
-    paypal_product_id = serializers.CharField(read_only=True)
-    currency = serializers.CharField(
-        max_length=3, default="USD", validators=[RegexValidator(r"^[A-Z]$")]
-    )
-    product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
-
     class Meta:
         model = Plan
         fields = "__all__"
-
-    def validate_name(self, value):
-        if Plan.objects.filter(name=value).exists():
-            raise serializers.ValidationError("Plan with this name already exists")
-        return value
-
-
-class PlanUpdateSerializer(serializers.ModelSerializer):
-    PLAN_TIERS = [
-        ("basic", "Basic"),
-        ("standard", "Standard"),
-        ("premium", "Premium"),
-    ]
-    name = serializers.ChoiceField(choices=PLAN_TIERS)
-    paypal_plan_id = serializers.CharField(read_only=True)
-    paypal_product_id = serializers.CharField(read_only=True)
-    currency = serializers.CharField(
-        read_only=True,
-        max_length=3,
-        default="USD",
-        validators=[RegexValidator(r"^[A-Z]$")],
-    )
-    product = serializers.PrimaryKeyRelatedField(read_only=True)
-    auto_renew = serializers.BooleanField(default=True)
-    billing_cycle = serializers.CharField(max_length=50, read_only=True)
-    price = serializers.DecimalField(max_digits=30, decimal_places=2, read_only=True)
-
-    class Meta:
-        model = Plan
-        fields = "__all__"
-
-    def validate_name(self, value):
-        if Plan.objects.filter(name=value).exists():
-            raise serializers.ValidationError("Plan with this name already exists")
-        return value
 
 
 class SystemSetUpSerializer(serializers.Serializer):
