@@ -71,6 +71,7 @@ class Camera(models.Model):
         ("others", "Others"),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="cameras")
+    name = models.CharField(max_length=255, blank=True, null=True)
     camera_type = models.CharField(max_length=50, choices=CAMERA_TYPE_CHOICES)
     industry_type = models.CharField(max_length=50)
     environment = models.CharField(max_length=50, choices=CAMERA_ENVIRONMENT_CHOICES)
@@ -133,6 +134,11 @@ class Camera(models.Model):
 
     def __str__(self) -> str:
         return f"{self.brand} {self.camera_type} ({self.pk})"
+
+    def save(self, *args, **kwargs):
+        if not self.name:
+            self.name = f"{self.brand} {self.camera_type} ({self.pk})"
+        super().save(*args, **kwargs)
 
 
 class CameraSetup(models.Model):

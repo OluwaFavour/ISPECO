@@ -141,50 +141,50 @@ class ListCameraView(generics.ListAPIView):
         return Camera.objects.filter(user=self.request.user)
 
 
-class CameraPasswordView(generics.GenericAPIView):
-    permission_classes = (permissions.IsAuthenticated,)
+# class CameraPasswordView(generics.GenericAPIView):
+#     permission_classes = (permissions.IsAuthenticated,)
 
-    @extend_schema(
-        responses={
-            200: inline_serializer(
-                name="Password200",
-                fields={"password": serializers.CharField()},
-            ),
-            403: inline_serializer(
-                name="Password403",
-                fields={"message": serializers.CharField()},
-            ),
-            404: inline_serializer(
-                name="Password404",
-                fields={"message": serializers.CharField()},
-            ),
-        },
-        description="Retrieve the password of a camera specified by ID in the URL.",
-    )
-    def get(self, request, *args, **kwargs):
-        try:
-            camera = Camera.objects.get(id=kwargs["id"])
-        except Camera.DoesNotExist:
-            return Response(
-                {"message": "Camera not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        if camera.user != request.user:
-            return Response(
-                {"message": "This user does not have access to this camera"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        return Response({"password": camera.password}, status=status.HTTP_200_OK)
+#     @extend_schema(
+#         responses={
+#             200: inline_serializer(
+#                 name="Password200",
+#                 fields={"password": serializers.CharField()},
+#             ),
+#             403: inline_serializer(
+#                 name="Password403",
+#                 fields={"message": serializers.CharField()},
+#             ),
+#             404: inline_serializer(
+#                 name="Password404",
+#                 fields={"message": serializers.CharField()},
+#             ),
+#         },
+#         description="Retrieve the password of a camera specified by ID in the URL.",
+#     )
+#     def get(self, request, *args, **kwargs):
+#         try:
+#             camera = Camera.objects.get(id=kwargs["id"])
+#         except Camera.DoesNotExist:
+#             return Response(
+#                 {"message": "Camera not found"},
+#                 status=status.HTTP_404_NOT_FOUND,
+#             )
+#         if camera.user != request.user:
+#             return Response(
+#                 {"message": "This user does not have access to this camera"},
+#                 status=status.HTTP_403_FORBIDDEN,
+#             )
+#         return Response({"password": camera.password}, status=status.HTTP_200_OK)
 
 
-class CameraUrlView(generics.GenericAPIView):
+class CameraStreamUrlView(generics.GenericAPIView):
     permission_classes = (permissions.IsAuthenticated,)
 
     @extend_schema(
         responses={
             200: inline_serializer(
                 name="Url200",
-                fields={"url": serializers.CharField()},
+                fields={"stream_url": serializers.CharField()},
             ),
             403: inline_serializer(
                 name="Url403",
@@ -210,4 +210,4 @@ class CameraUrlView(generics.GenericAPIView):
                 {"message": "This user does not have access to this camera"},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        return Response({"url": camera.url}, status=status.HTTP_200_OK)
+        return Response({"stream_url": camera.stream_url}, status=status.HTTP_200_OK)
