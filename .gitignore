@@ -10,6 +10,8 @@ secrets/
 .vscode/
 *.txt
 load_secrets.sh
-entry.bat
+*.bat
 docker_entrypoint.sh
 create_paypal_plans.py
+input.yml
+ignore/
