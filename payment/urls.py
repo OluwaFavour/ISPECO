@@ -9,7 +9,7 @@ from .views import (
     TransactionListView,
 )
 
-url_patterns = [
+urlpatterns = [
     path("plans/", PlanListView.as_view(), name="plan-list"),
     path("transactions/", TransactionListView.as_view(), name="transaction-list"),
     path(
