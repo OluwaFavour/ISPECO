@@ -36,7 +36,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     country = models.CharField(_("country"), max_length=100, blank=True)
     city = models.CharField(_("city"), max_length=100, blank=True)
     address = models.CharField(_("address"), max_length=300, blank=True)
-    zip_code = models.CharField(_("zip code"), blank=True, null=True)
+    zip_code = models.CharField(_("zip code"), blank=True, null=True, max_length=10)
     phone_number = PhoneNumberField(_("phone number"), blank=True, null=True)
     is_staff = models.BooleanField(
         _("staff status"),
