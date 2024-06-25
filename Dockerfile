@@ -7,7 +7,7 @@
 # Want to help us make this template better? Share your feedback here: https://forms.gle/ybq9Krt8jtBL3iCk7
 
 ARG PYTHON_VERSION=3.11.5
-FROM python:${PYTHON_VERSION}-slim as base
+FROM python:${PYTHON_VERSION}-slim AS base
 
 # Install system dependencies.
 RUN apt-get update && apt-get install -y \
@@ -64,4 +64,4 @@ EXPOSE 8000
 ENTRYPOINT ["/app/docker_entrypoint.sh"]
 
 # Run the application.
-CMD daphne -b 0.0.0.0 -p 8000 ISPECO_Core.asgi:application
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "ISPECO_Core.asgi:application"]
