@@ -38,9 +38,9 @@ jobs:
 
       - name: Install Copilot CLI
         run: |
-          curl -Lo copilot https://github.com/aws/copilot-cli/releases/latest/download/copilot-linux
-          chmod +x copilot
-          sudo mv copilot /usr/local/bin/copilot
+          curl -Lo /tmp/copilot https://github.com/aws/copilot-cli/releases/latest/download/copilot-linux
+          chmod +x /tmp/copilot
+          sudo mv /tmp/copilot /usr/local/bin/copilot
 
       - name: Deploy to AWS
         run: copilot svc deploy --name ${{ env.COPILOT_SERVICE }} --env ${{ env.COPILOT_ENVIRONMENT }}
