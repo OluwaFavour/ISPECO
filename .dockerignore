@@ -38,3 +38,7 @@
 **/superuser_password.txt
 LICENSE
 README.md
+**/*.bat
+**/input.yml
+**/migrations
+**/staticfiles
