@@ -21,16 +21,51 @@ http:
 # Configuration for your containers and service.
 image:
   # Docker build arguments. For additional overrides: https://aws.github.io/copilot-cli/docs/manifest/lb-web-service/#image-build
-  build: Dockerfile
+  build: awsDockerfile
   # Port exposed through your container to route traffic to it.
   port: 8000
 
-cpu: 256 # Number of CPU units for the task.
-memory: 512 # Amount of memory in MiB used by the task.
-count: 1 # Number of tasks that should be running in your service.
+cpu: 512 # Number of CPU units for the task.
+memory: 1024 # Amount of memory in MiB used by the task.
+count: # Number of tasks that should be running in your service.
+  range:
+    min: 2
+    max: 10
+  cpu_percentage: 70
+  memory_percentage: 80
+
+variables:
+  EMAIL_HOST: "smtp.titan.email"
+  EMAIL_HOST_USER: "smtp@mradeveloper.com"
+  ALLOWED_HOSTS: "*"
+  EMAIL_PORT: "587"
+  EMAIL_USE_TLS: "True"
+  DEFAULT_FROM_EMAIL: "smtp@mradeveloper.com"
+  SERVER_EMAIL: "smtp@mradeveloper.com"
+  ISPECO_SERVER_URL: "https://api.ispecocloud.com"
+  DJANGO_SETTINGS_MODULE: "ISPECO_Core.settings"
+  TAG: "latest"
+  DEBUG: "True"
+  TWILIO_ACCOUNT_SID: "AC30219528eeb3b6fd936fc6eba7389d7f"
+  TWILIO_PHONE_NUMBER: "+19282185766"
+  PAYPAL_CLIENT_ID: "AVtlg1rr-xpHOefnH3S8uY1YaW8SYhO7WgtB1kMkFMKfONzi-wnJN_bWMrneC08xloEjIHDxb3qykOV0"
+
+environments:
+  prod:
+    secrets:
+      SECRET_KEY: /copilot/api/prod/secrets/SECRET_KEY
+      EMAIL_HOST_PASSWORD: /copilot/api/prod/secrets/EMAIL_HOST_PASSWORD
+      TWILIO_AUTH_TOKEN: /copilot/api/prod/secrets/TWILIO_AUTH_TOKEN
+      PAYPAL_SECRET: /copilot/api/prod/secrets/PAYPAL_SECRET
+      DATABASE_URL: /copilot/api/prod/secrets/DATABASE_URL
+      SUPERUSER_PASSWORD: /copilot/api/prod/secrets/SUPERUSER_PASSWORD
+      FERNET_KEY: /copilot/api/prod/secrets/FERNET_KEY
+
 exec: true # Enable running commands in your container.
 network:
   connect: true # Enable Service Connect for intra-environment traffic between services.
+observability:
+  tracing: awsxray # Enable AWS X-Ray for tracing requests to your service.
 
 # storage:
 # readonly_fs: true       # Limit to read-only access to mounted root filesystems.
