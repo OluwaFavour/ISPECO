@@ -11,7 +11,7 @@ export SUPERUSER_PASSWORD=$(cat /run/secrets/superuser_password)
 python manage.py collectstatic --noinput
 python manage.py makemigrations user_authentication
 python manage.py migrate
-python manage.py makemigrations camera_integration live_streaming
+python manage.py makemigrations camera_integration live_streaming payment
 python manage.py migrate
 python manage.py create_superuser
 
