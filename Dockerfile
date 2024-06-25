@@ -50,13 +50,6 @@ COPY entrypoint.sh .
 # Ensure entrypoint.sh is executable.
 RUN chmod +x /app/entrypoint.sh
 
-# Copy the script to load secrets into the container.
-COPY load_secrets.sh .
-
-# Ensure load_secrets.sh is executable.
-RUN chmod +x /app/load_secrets.sh
-
-
 # Expose the port that the application listens on.
 EXPOSE 8000
 
