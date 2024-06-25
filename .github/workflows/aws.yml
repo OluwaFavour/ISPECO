@@ -19,10 +19,6 @@ jobs:
       - name: Set up docker
         uses: docker/setup-buildx-action@v1
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-
       - name: Install AWS CLI
         run: |
           curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
@@ -36,6 +32,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Login to Amazon ECR Private
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
       - name: Install Copilot CLI
         run: |
           curl -Lo copilot https://github.com/aws/copilot-cli/releases/latest/download/copilot-linux
@@ -43,4 +43,4 @@ jobs:
           sudo mv copilot /usr/local/bin/copilot
 
       - name: Deploy to AWS
-        run: copilot deploy --name ${{ env.COPILOT_SERVICE }} --env ${{ env.COPILOT_ENVIRONMENT }}
+        run: copilot svc deploy --name ${{ env.COPILOT_SERVICE }} --env ${{ env.COPILOT_ENVIRONMENT }}
