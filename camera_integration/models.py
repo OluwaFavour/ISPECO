@@ -55,7 +55,8 @@ class Camera(models.Model):
         ("4mp", "4MP"),
         ("5mp", "5MP"),
         ("6mp", "6MP"),
-        ("7mp", "7MP")("8mp", "8MP"),
+        ("7mp", "7MP"),
+        ("8mp", "8MP"),
     ]
     CAMERA_BRAND_CHOICES = [
         ("samsumg", "Samsung"),
