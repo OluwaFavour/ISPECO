@@ -13,6 +13,7 @@ env:
   AWS_REGION: af-south-1
   COPILOT_ENVIRONMENT: prod
   COPILOT_SERVICE: api
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ID }}
 
 jobs:
   deploy:
