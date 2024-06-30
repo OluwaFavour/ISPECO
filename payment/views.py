@@ -1,11 +1,7 @@
-from itertools import product
-from locale import currency
-from re import sub
-from typing import Any, Dict
+from drf_spectacular.utils import extend_schema, inline_serializer
 from django.shortcuts import redirect
 from rest_framework import generics, status
-from rest_framework import generics, status
-from rest_framework.exceptions import MethodNotAllowed
+from rest_framework import generics, status, serializers
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -242,6 +238,27 @@ class SubscriptionDetailView(generics.RetrieveAPIView):
 class PayPalReturnView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        request=None,
+        responses={
+            status.HTTP_200_OK: inline_serializer(
+                name="PaypalReturnViewResponse",
+                fields={"message": serializers.CharField()},
+            ),
+            status.HTTP_404_NOT_FOUND: inline_serializer(
+                name="PaypalReturnViewError404",
+                fields={"error": serializers.CharField()},
+            ),
+            status.HTTP_403_FORBIDDEN: inline_serializer(
+                name="PaypalReturnViewError403",
+                fields={"error": serializers.CharField()},
+            ),
+            status.HTTP_500_INTERNAL_SERVER_ERROR: inline_serializer(
+                name="PaypalReturnViewError500",
+                fields={"error": serializers.CharField()},
+            ),
+        },
+    )
     def get(self, request, *args, **kwargs):
         paypal_subscription_id = request.GET.get("subscription_id")
 
@@ -278,7 +295,10 @@ class PayPalReturnView(generics.GenericAPIView):
             )
 
         temp_data.delete()
-        return Response({"message": "Subscription activated successfully"})
+        return Response(
+            {"message": "Subscription activated successfully"},
+            status=status.HTTP_200_OK,
+        )
 
     def _create_subscription(self, temp_data, payer_email):
         plan = temp_data.plan
@@ -341,6 +361,23 @@ class PayPalReturnView(generics.GenericAPIView):
 class PayPalCancelView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        request=None,
+        responses={
+            status.HTTP_200_OK: inline_serializer(
+                name="PayPalCancelViewResponse",
+                fields={"message": serializers.CharField()},
+            ),
+            status.HTTP_404_NOT_FOUND: inline_serializer(
+                name="PayPalCancelViewError404",
+                fields={"error": serializers.CharField()},
+            ),
+            status.HTTP_403_FORBIDDEN: inline_serializer(
+                name="PayPalCancelViewError403",
+                fields={"error": serializers.CharField()},
+            ),
+        },
+    )
     def get(self, request, *args, **kwargs):
         paypal_subscription_id = request.GET.get("subscription_id")
 
@@ -360,7 +397,10 @@ class PayPalCancelView(generics.GenericAPIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
         temp_data.delete()
-        return Response({"message": "Subscription cancelled successfully"})
+        return Response(
+            {"message": "Subscription cancelled successfully"},
+            status=status.HTTP_200_OK,
+        )
 
 
 class TransactionListView(generics.ListAPIView):

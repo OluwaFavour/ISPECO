@@ -1,7 +1,5 @@
 import email
-from operator import is_
 from django.contrib.auth import authenticate
-from django.utils import timezone
 from .forms import CustomUserCreationForm
 from .models import Notification, User, OTP, UserAccess
 from django.utils.translation import gettext_lazy as _
@@ -12,6 +10,10 @@ from phonenumber_field.serializerfields import PhoneNumberField
 class LoginOutSerializer(serializers.Serializer):
     expiry = serializers.DateTimeField()
     token = serializers.CharField()
+
+
+class LogoutSerializer(serializers.Serializer):
+    pass
 
 
 class UserOutSerializer(serializers.Serializer):

@@ -3,7 +3,7 @@ from django.core.validators import RegexValidator, URLValidator
 from rest_framework import serializers
 
 from user_authentication.models import User
-from .models import Plan, Subscription, Transaction, Product
+from .models import Plan, Subscription, Transaction
 from phonenumber_field.serializerfields import PhoneNumberField
 
 

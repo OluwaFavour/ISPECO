@@ -1,29 +1,27 @@
-from ast import Not
-import re
-from attr import validate
 from typing import List
-from django.contrib.auth import login, authenticate
+from django.contrib.auth import login
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
-from rest_framework.exceptions import NotFound
 from rest_framework import serializers
-from knox.views import LoginView as KnoxLoginView
-from drf_spectacular.utils import extend_schema, inline_serializer
+from knox.views import (
+    LoginView as KnoxLoginView,
+    LogoutView as KnoxLogoutView,
+    LogoutAllView as KnoxLogoutAllView,
+)
+from drf_spectacular.utils import extend_schema, inline_serializer, extend_schema_view
 from drf_spectacular.types import OpenApiTypes
 from .models import (
-    Notification,
     User,
-    EmailAlreadyVerifiedError,
-    InvalidVerificationTokenError,
     OTP,
     UserAccess,
 )
 from .serializers import (
     LoginOutSerializer,
+    LogoutSerializer,
     NotificationSerializer,
     PasswordResetSerializer,
     UserInSerializer,
@@ -590,3 +588,23 @@ class NotificationCreateView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save()
+
+
+@extend_schema_view(
+    post=extend_schema(
+        responses={status.HTTP_204_NO_CONTENT: OpenApiTypes.NONE},
+        description="Log out the user",
+    )
+)
+class LogoutView(KnoxLogoutView, generics.GenericAPIView):
+    serializer_class = LogoutSerializer
+
+
+@extend_schema_view(
+    post=extend_schema(
+        responses={status.HTTP_204_NO_CONTENT: OpenApiTypes.NONE},
+        description="Log out the user from all devices",
+    )
+)
+class LogoutAllView(KnoxLogoutAllView, generics.GenericAPIView):
+    serializer_class = LogoutSerializer

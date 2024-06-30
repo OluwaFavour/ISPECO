@@ -1,13 +1,21 @@
 from django.core.mail import send_mail
-from rest_framework import generics, permissions, status
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import generics, permissions, status, serializers
 from rest_framework.response import Response
 
 from ISPECO_Core.serializers import ContactUsSerializer
 
 
 class HealthCheckView(generics.GenericAPIView):
-    permission_classes = (permissions.AllowAny,)
-
+    @extend_schema(
+        auth=None,
+        request=None,
+        responses=inline_serializer(
+            name="HealthCheckResponse",
+            fields={"message": serializers.CharField()},
+        ),
+        description="Check if the server is healthy",
+    )
     def get(self, request, *args, **kwargs):
         return Response({"message": "Healthy"}, status=status.HTTP_200_OK)
 
