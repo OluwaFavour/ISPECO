@@ -116,6 +116,7 @@ class VerifyEmailOTPView(generics.GenericAPIView):
             return Response(
                 {"message": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST
             )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class SignupView(generics.GenericAPIView):
