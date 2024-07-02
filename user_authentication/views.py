@@ -1,3 +1,4 @@
+import re
 from typing import List
 from django.contrib.auth import login
 from django.core.mail import send_mail
@@ -98,8 +99,20 @@ class VerifyEmailOTPView(generics.GenericAPIView):
     permission_classes = (permissions.AllowAny,)
     serializer_class = EmailOTPSerializer
 
-    def get(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=request.data)
+    @extend_schema(
+        responses={
+            status.HTTP_200_OK: inline_serializer(
+                name="VerifyEmailOTPResponse",
+                fields={"message": serializers.CharField()},
+            ),
+            status.HTTP_400_BAD_REQUEST: inline_serializer(
+                name="VerifyEmailOTPErrorResponse",
+                fields={"message": serializers.CharField()},
+            ),
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             email = serializer.validated_data["email"]
             otp = serializer.validated_data["otp"]
