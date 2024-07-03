@@ -157,7 +157,7 @@ class SignupView(generics.GenericAPIView):
             status.HTTP_201_CREATED: OpenApiTypes.STR,
             400: OpenApiTypes.STR,
         },
-        description="Validate the user's email address and OTP, and create a new user.",
+        description="Validate the user's email address, and create a new user.",
     )
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

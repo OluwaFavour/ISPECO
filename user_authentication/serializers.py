@@ -67,22 +67,12 @@ class PhoneOTPSerializer(serializers.Serializer):
 
 class UserInSerializer(serializers.Serializer):
     email = serializers.EmailField()
-    otp = serializers.CharField(max_length=6)
     password1 = serializers.CharField(
         max_length=128, write_only=True, style={"input_type": "password"}
     )
     password2 = serializers.CharField(
         max_length=128, write_only=True, style={"input_type": "password"}
     )
-
-    def validate_otp(self, value):
-        if not OTP.objects.filter(otp=value).exists():
-            raise serializers.ValidationError("Invalid OTP.")
-        else:
-            otp = OTP.objects.get(otp=value)
-            if not otp.is_valid():
-                raise serializers.ValidationError("OTP has expired.")
-        return value
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
@@ -91,9 +81,6 @@ class UserInSerializer(serializers.Serializer):
 
     def validate(self, data):
         email = data["email"]
-        otp = data["otp"]
-        if not OTP.objects.filter(email=email, otp=otp).exists():
-            raise serializers.ValidationError("Invalid OTP.")
         form = CustomUserCreationForm(data)
         if not form.is_valid():
             raise serializers.ValidationError(form.errors.as_data())
