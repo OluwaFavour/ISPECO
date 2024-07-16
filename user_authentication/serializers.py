@@ -5,6 +5,7 @@ from .models import Notification, User, OTP, UserAccess
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from phonenumber_field.serializerfields import PhoneNumberField
+from .models import OTP, TemporaryUserUpdateData
 
 
 class LoginOutSerializer(serializers.Serializer):
@@ -77,6 +78,8 @@ class UserInSerializer(serializers.Serializer):
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError("Email address already exists.")
+        if not OTP.objects.filter(email=value, _is_verified=True).exists():
+            raise serializers.ValidationError("Email address is not verified.")
         return value
 
     def validate(self, data):
@@ -115,6 +118,12 @@ class UserUpdateInSerializer(serializers.Serializer):
         )
         instance.save()
         return instance
+
+
+class TemporaryUserUpdateDataSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TemporaryUserUpdateData
+        fields = "__all__"
 
 
 class UserUpdateOutSerializer(serializers.Serializer):

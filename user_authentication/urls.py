@@ -17,11 +17,13 @@ from .views import (
     NotificationCreateView,
     NotificationRetrieveUpdateDestroyView,
     NotificationListView,
+    VerifyPhoneOTPView,
 )
 
 urlpatterns = [
     path("send-email-otp/", SendEmailOTPView.as_view(), name="send_otp"),
     path("verify-email-otp/", VerifyEmailOTPView.as_view(), name="verify_otp"),
+    path("verify-phone-otp/", VerifyPhoneOTPView.as_view(), name="verify_phone_otp"),
     path("signup/", SignupView.as_view(), name="knox_signup"),
     path("forgot-password/", ForgotPasswordView.as_view(), name="forgot_password"),
     path(

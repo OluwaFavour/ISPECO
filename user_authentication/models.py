@@ -1,5 +1,7 @@
+from operator import is_
 import random
 import secrets
+from venv import create
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.utils.translation import gettext_lazy as _
@@ -120,6 +122,23 @@ class OTP(models.Model):
     phone_number = PhoneNumberField(_("phone number"), blank=True, null=True)
     otp = models.CharField(max_length=6)
     created_at = models.DateTimeField(default=timezone.now)
+    _is_verified = models.BooleanField(
+        default=False
+    )  # Added field to store verification status
+
+    @property
+    def is_verified(self) -> bool:
+        """
+        Returns whether the OTP has been verified or not.
+
+        Returns:
+            bool: True if the OTP has been verified, False otherwise.
+        """
+        return self._is_verified
+
+    @is_verified.setter
+    def is_verified(self, value: bool) -> None:
+        self._is_verified = value
 
     def __str__(self):
         return self.otp
@@ -139,6 +158,24 @@ class OTP(models.Model):
         self.created_at = timezone.now()
         self.save(update_fields=["otp", "created_at"])
         return self.otp
+
+
+class TemporaryUserUpdateData(models.Model):
+    full_name = models.CharField(_("full name"), max_length=301, blank=True)
+    country = models.CharField(_("country"), max_length=100, blank=True)
+    city = models.CharField(_("city"), max_length=100, blank=True)
+    address = models.CharField(_("address"), max_length=300, blank=True)
+    zip_code = models.CharField(_("zip code"), blank=True, null=True, max_length=10)
+    phone_number = PhoneNumberField(_("phone number"), blank=True, null=True)
+    user = models.OneToOneField(
+        to=User, on_delete=models.CASCADE, related_name="temp_data"
+    )
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+    def is_expired(self):
+        expiry_duration = timezone.timedelta(minutes=5)
+        expiry_time = self.created_at + expiry_duration
+        return timezone.now() > expiry_time
 
 
 class UserAccess(models.Model):
