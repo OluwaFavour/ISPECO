@@ -24,6 +24,9 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
+admin.site.site_header = "ISPECO Administration"
+admin.site.site_title = "ISPECO Site Admin"
+admin.site.index_title = "Welcome to ISPECO Admin Panel"
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", HealthCheckView.as_view(), name="health"),
