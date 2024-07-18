@@ -54,7 +54,7 @@ class Plan(models.Model):
         ("yearly", "Yearly"),
     ]
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    name = models.CharField(max_length=50, choices=PLAN_TIERS, unique=True)
+    name = models.CharField(max_length=50, choices=PLAN_TIERS)
     description = models.TextField()
     billing_cycle = models.CharField(max_length=50, choices=BILLING_FREQUENCIES)
     price = models.DecimalField(max_digits=30, decimal_places=2)
