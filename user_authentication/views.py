@@ -266,7 +266,19 @@ class UpdateUserView(generics.GenericAPIView):
     serializer_class = UserUpdateInSerializer
 
     @extend_schema(
-        responses={status.HTTP_200_OK: UserUpdateOutSerializer},
+        responses={
+            status.HTTP_200_OK: inline_serializer(
+                name="UserUpdateResponse",
+                fields={
+                    "data": UserUpdateOutSerializer,
+                    "message": serializers.CharField(),
+                },
+            ),
+            status.HTTP_400_BAD_REQUEST: inline_serializer(
+                name="UserUpdateErrorResponse",
+                fields={"message": serializers.CharField()},
+            ),
+        },
         description="Partially update the details of the authenticated user.",
     )
     def post(self, request, *args, **kwargs):
@@ -289,6 +301,22 @@ class UpdateUserView(generics.GenericAPIView):
         except TemporaryUserUpdateData.DoesNotExist:
             return self.handle_temp_data(self.request.user, validated_data)
 
+    @extend_schema(
+        responses={
+            status.HTTP_200_OK: inline_serializer(
+                name="UserUpdateResponse",
+                fields={
+                    "data": UserUpdateOutSerializer,
+                    "message": serializers.CharField(),
+                },
+            ),
+            status.HTTP_400_BAD_REQUEST: inline_serializer(
+                name="UserUpdateErrorResponse",
+                fields={"message": serializers.CharField()},
+            ),
+        },
+        description="Partially update the details of the authenticated user.",
+    )
     def patch(self, request, *args, **kwargs):
         serializer = self.get_serializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
