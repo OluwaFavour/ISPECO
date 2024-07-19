@@ -96,7 +96,7 @@ class PayPalClient:
         ]
         response = requests.patch(url, headers=headers, json=data)
         response.raise_for_status()  # Raise an exception for 4xx or 5xx status codes
-        return response.json()
+        return {"message": "Product updated successfully."}
 
     def create_plan(
         self,
@@ -197,8 +197,8 @@ class PayPalClient:
         response = requests.patch(url, headers=headers, json=data)
         response.raise_for_status()
 
-        # Return the JSON response
-        return response.json()
+        # Return the response since the API does not return any data
+        return {"message": "Plan updated successfully."}
 
     def create_subscription(
         self,
