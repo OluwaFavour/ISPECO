@@ -371,16 +371,17 @@ class VerifyPhoneOTPView(generics.GenericAPIView):
 
     def put(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            phone_number = serializer.validated_data["phone_number"]
-            otp = serializer.validated_data["otp"]
+        serializer.is_valid(raise_exception=True)
+        phone_number = serializer.validated_data["phone_number"]
+        otp = serializer.validated_data["otp"]
+        try:
+            otp_obj = OTP.objects.get(phone_number=phone_number, otp=otp)
+        except OTP.DoesNotExist:
+            return Response(
+                {"message": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        if otp_obj.is_valid():
             try:
-                otp_obj = OTP.objects.get(phone_number=phone_number, otp=otp)
-            except OTP.DoesNotExist:
-                return Response(
-                    {"message": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST
-                )
-            if otp_obj.is_valid():
                 temp_data = TemporaryUserUpdateData.objects.get(
                     user=self.request.user, phone_number=phone_number
                 )
@@ -389,19 +390,22 @@ class VerifyPhoneOTPView(generics.GenericAPIView):
                 )
                 serializer.is_valid(raise_exception=True)
                 serializer.save()
-                temp_data.delete()
-                otp_obj.is_verified = True
-                otp_obj.save(update_fields=["_is_verified"])
+            except TemporaryUserUpdateData.DoesNotExist:
                 return Response(
-                    {
-                        "message": "OTP verified successfully, user data saved",
-                        "user": serializer.data,
-                    },
-                    status=status.HTTP_200_OK,
+                    {"message": "No user data update found for this phone number"},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
+            temp_data.delete()
+            otp_obj.is_verified = True
+            otp_obj.save(update_fields=["_is_verified"])
             return Response(
-                {"message": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST
+                {
+                    "message": "OTP verified successfully, user data saved",
+                    "user": serializer.data,
+                },
+                status=status.HTTP_200_OK,
             )
+        return Response({"message": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class UserPasswordView(generics.GenericAPIView):
