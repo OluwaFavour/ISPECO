@@ -247,10 +247,10 @@ class PayPalClient:
             },
             "subscriber": {
                 "name": {
-                    "given_name": subscriber["first_name"],
-                    "surname": subscriber["last_name"],
+                    "given_name": subscriber["given_name"],
+                    "surname": subscriber["surname"],
                 },
-                "email_address": subscriber["email"],
+                "email_address": subscriber["email_address"],
             },
         }
 

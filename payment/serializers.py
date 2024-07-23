@@ -1,3 +1,4 @@
+from multiprocessing import context
 from django.utils import timezone
 from django.core.validators import RegexValidator, URLValidator
 from rest_framework import serializers
@@ -101,6 +102,7 @@ class SystemSetUpSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "You can only set up a system for yourself"
             )
+        return data
 
 
 class CardSerializer(serializers.Serializer):
@@ -119,6 +121,7 @@ class CardSerializer(serializers.Serializer):
         # Check if the expiry date is in the future
         if value < timezone.now().date():
             raise serializers.ValidationError("Card has expired")
+        return value
 
 
 class SubscriptionInSerializer(serializers.Serializer):

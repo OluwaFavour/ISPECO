@@ -1,5 +1,8 @@
+from email.policy import HTTP
+import http
 from drf_spectacular.utils import extend_schema, inline_serializer
 from django.shortcuts import redirect
+from requests import HTTPError
 from rest_framework import generics, status
 from rest_framework import generics, status, serializers
 from rest_framework.permissions import IsAuthenticated
@@ -45,9 +48,11 @@ class SubscriptionView(generics.GenericAPIView):
         quantity = validated_data["quantity"]
         payment_method = validated_data["payment_method"]
 
-        return_url = self.request.build_absolute_uri("/api/payment/subscribe/success/")
+        return_url = self.request.build_absolute_uri(
+            "/api/payment/paypal/subscribe/success/"
+        )
         cancel_url = self.request.build_absolute_uri(
-            "/api/payment/subscribe/cancel-payment/"
+            "/api/payment/paypal/subscribe/cancel-payment/"
         )
 
         try:
@@ -61,24 +66,53 @@ class SubscriptionView(generics.GenericAPIView):
                 return_url,
                 cancel_url,
             )
+        except HTTPError as http_error:
+            return Response(
+                {"error": "Failed to process payment", "details": str(http_error)},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
         except Exception as e:
             return Response(
-                {"error": "Failed to process payment", "details": str(e)},
+                {"error": "Failed to process payment", "details": e.__str__()},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
         if payment_method.upper() == "PAYPAL":
-            # Save temporary subscription data
-            TemporarySubscriptionData.objects.create(
-                user=user,
-                plan=plan,
-                system_setup_data=system_setup_data,
-                quantity=quantity,
-                paypal_subscription_id=paypal_subscription_id,
-            )
-            return redirect(approval_url)
+            try:
+                TemporarySubscriptionData.objects.create(
+                    user=user,
+                    plan=plan,
+                    quantity=quantity,
+                    paypal_subscription_id=paypal_subscription_id,
+                    **system_setup_data,
+                )
+                return redirect(approval_url)
+            except Exception as e:
+                print(e)
+                return Response(
+                    {
+                        "error": "Failed to save temporary subscription data",
+                        "details": str(e),
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
         else:
-            return Response({"message": "Subscription activated successfully"})
+            subscription = Subscription.objects.get(
+                paypal_subscription_id=paypal_subscription_id
+            )
+            return Response(
+                {
+                    "message": "Subscription activated successfully",
+                    "details": {
+                        "start_date": subscription.start_date,
+                        "end_date": subscription.end_date,
+                        "payment_method": subscription.payment_method,
+                        "number_of_cameras": subscription.number_of_cameras,
+                        "subscription_id": subscription.id,
+                        "paypal_subscription_id": subscription.paypal_subscription_id,
+                    },
+                }
+            )
 
     def _process_payment(
         self,
@@ -149,12 +183,17 @@ class SubscriptionView(generics.GenericAPIView):
                 raise Exception("Failed to create subscription") from e
 
         return paypal_subscription_id, next(
-            link["href"]
-            for link in paypal_subscription["links"]
-            if link["rel"] == "approve"
+            (
+                link["href"]
+                for link in paypal_subscription["links"]
+                if link["rel"] == "approve"
+            ),
+            None,
         )
 
     def _create_card(self, user, card_data):
+        if Card.objects.filter(user=user, number=card_data["number"]).exists():
+            return Card.objects.get(user=user, number=card_data["number"])
         return Card.objects.create(
             user=user,
             name=card_data["name"],
@@ -195,7 +234,6 @@ class SubscriptionView(generics.GenericAPIView):
             user=user,
             subscription=subscription,
             amount=plan.price * quantity,
-            setup_fee=plan.setup_fee,
             transaction_id=transaction_id,
         )
 
@@ -236,7 +274,6 @@ class SubscriptionDetailView(generics.RetrieveAPIView):
 
 # Paypal return and view
 class PayPalReturnView(generics.GenericAPIView):
-    permission_classes = [IsAuthenticated]
 
     @extend_schema(
         request=None,
@@ -272,12 +309,6 @@ class PayPalReturnView(generics.GenericAPIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        if self.request.user != temp_data.user:
-            return Response(
-                {"error": "You can only activate your own subscription"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
         paypal_client = PayPalClient()
         try:
             subscription_details = paypal_client.get_subscription(
@@ -286,18 +317,27 @@ class PayPalReturnView(generics.GenericAPIView):
             payer_email = subscription_details["subscriber"]["email_address"]
             subscription = self._create_subscription(temp_data, payer_email)
             self._create_transaction(temp_data, subscription)
-            self._handle_system_setup(temp_data)
 
         except Exception as e:
             return Response(
                 {"error": f"Failed to create subscription: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+        self._handle_system_setup(temp_data)
 
         temp_data.delete()
         return Response(
-            {"message": "Subscription activated successfully"},
-            status=status.HTTP_200_OK,
+            {
+                "message": "Subscription activated successfully",
+                "details": {
+                    "start_date": subscription.start_date,
+                    "end_date": subscription.end_date,
+                    "payment_method": subscription.payment_method,
+                    "number_of_cameras": subscription.number_of_cameras,
+                    "subscription_id": subscription.id,
+                    "paypal_subscription_id": subscription.paypal_subscription_id,
+                },
+            }
         )
 
     def _create_subscription(self, temp_data, payer_email):
@@ -327,39 +367,35 @@ class PayPalReturnView(generics.GenericAPIView):
             user=temp_data.user,
             subscription=subscription,
             amount=plan.price * quantity,
-            setup_fee=plan.setup_fee,
             transaction_id=temp_data.paypal_subscription_id,
         )
 
-    def _handle_system_setup(self, temp_data):
-        system_setup_data = temp_data.system_setup_data
-
-        for cam_data in system_setup_data["cameras"]:
+    def _handle_system_setup(self, temp_data: TemporarySubscriptionData):
+        for cam_data in range(temp_data.number_of_cameras):
             camera = Camera.objects.create(
                 user=temp_data.user,
-                industry_type=cam_data["industry_type"],
-                camera_type=cam_data["camera_type"],
-                environment=cam_data["environment"],
-                resolution=cam_data["resolution"],
-                brand=cam_data["brand"],
-                stream_url=cam_data["url"],
+                industry_type=temp_data.industry_type,
+                camera_type=temp_data.camera_type,
+                environment=temp_data.environment,
+                resolution=temp_data.resolution,
+                brand=temp_data.brand,
+                stream_url=temp_data.url,
             )
             CameraSetup.objects.create(
                 camera=camera,
-                address_line_1=cam_data["address_line_1"],
-                address_line_2=cam_data["address_line_2"],
-                city=cam_data["city"],
-                zip_code=cam_data["zip_code"],
-                state_province=cam_data["state_province"],
-                country=cam_data["country"],
-                date=cam_data["date"],
-                time=cam_data["time"],
-                installation_notes=cam_data["installation_notes"],
+                address_line_1=temp_data.address_line_1,
+                address_line_2=temp_data.address_line_2,
+                city=temp_data.city,
+                zip_code=temp_data.zip_code,
+                state_province=temp_data.state_province,
+                country=temp_data.country,
+                date=temp_data.date,
+                time=temp_data.time,
+                installation_notes=temp_data.installation_notes,
             )
 
 
 class PayPalCancelView(generics.GenericAPIView):
-    permission_classes = [IsAuthenticated]
 
     @extend_schema(
         request=None,
@@ -389,12 +425,6 @@ class PayPalCancelView(generics.GenericAPIView):
             return Response(
                 {"error": "Subscription data not found"},
                 status=status.HTTP_404_NOT_FOUND,
-            )
-
-        if self.request.user != temp_data.user:
-            return Response(
-                {"error": "You can only cancel your own subscription"},
-                status=status.HTTP_403_FORBIDDEN,
             )
         temp_data.delete()
         return Response(

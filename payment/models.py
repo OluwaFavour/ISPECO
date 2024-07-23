@@ -2,6 +2,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models, transaction
 from django.utils import timezone
+from phonenumber_field.modelfields import PhoneNumberField
 from .paypal_client import PayPalClient
 from user_authentication.models import User
 
@@ -153,7 +154,27 @@ class Subscription(models.Model):
 class TemporarySubscriptionData(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     plan = models.ForeignKey(Plan, on_delete=models.CASCADE)
-    system_setup_data = models.JSONField()
+    name = models.CharField(max_length=301, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+    phone_number = PhoneNumberField(blank=True, null=True)
+    date = models.DateField(blank=True, null=True)
+    time = models.TimeField(blank=True, null=True)
+    number_of_cameras = models.IntegerField(blank=True, null=True)
+    industry_type = models.CharField(max_length=100, blank=True, null=True)
+    camera_type = models.CharField(max_length=100, blank=True, null=True)
+    environment = models.CharField(max_length=100, blank=True, null=True)
+    resolution = models.CharField(max_length=100, blank=True, null=True)
+    brand = models.CharField(max_length=100, blank=True, null=True)
+    url = models.URLField(blank=True, null=True)
+
+    # Installation Address
+    address_line_1 = models.CharField(max_length=255, blank=True, null=True)
+    address_line_2 = models.CharField(max_length=255, blank=True, null=True)
+    city = models.CharField(max_length=50, blank=True, null=True)
+    zip_code = models.CharField(max_length=10, blank=True, null=True)
+    state_province = models.CharField(max_length=50, blank=True, null=True)
+    country = models.CharField(max_length=50, blank=True, null=True)
+    installation_notes = models.CharField(blank=True, null=True)
     quantity = models.IntegerField(default=1)
     paypal_subscription_id = models.CharField(max_length=50, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
