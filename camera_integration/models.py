@@ -8,21 +8,37 @@ from cryptography.fernet import Fernet
 class Camera(models.Model):
     """
     Represents a camera model.
-
     Attributes:
-        user (User): The user who owns the camera.
-        name (str): The name of the camera.
-        camera_type (str): The type of the camera.
-        industry_type (str): The industry type the camera is used in.
-        environment (str): The environment the camera is used in.
-        resolution (str): The resolution of the camera.
-        brand (str): The brand of the camera.
-        encrypted_url (bytes): The encrypted URL to access the camera stream.
-
+        user (ForeignKey): The user associated with the camera.
+        name (CharField): The name of the camera.
+        camera_type (CharField): The type of the camera.
+        industry_type (CharField): The industry type of the camera.
+        environment (CharField): The environment in which the camera is used.
+        resolution (CharField): The resolution of the camera.
+        brand (CharField): The brand of the camera.
+        encrypted_url (BinaryField): The encrypted URL of the camera.
+        ip_address (GenericIPAddressField): The IP address of the camera.
+        port (IntegerField): The port number of the camera.
+        username (CharField): The username for accessing the camera.
+        encrypted_password (BinaryField): The encrypted password for accessing the camera.
+        address_line_1 (CharField): The address line 1 of the camera's location.
+        address_line_2 (CharField): The address line 2 of the camera's location.
+        city (CharField): The city of the camera's location.
+        zip_code (CharField): The zip code of the camera's location.
+        state_province (CharField): The state or province of the camera's location.
+        country (CharField): The country of the camera's location.
+        date (DateField): The date of installation of the camera.
+        time (TimeField): The time of installation of the camera.
+        installation_notes (TextField): Any notes related to the camera installation.
     Methods:
-        stream_url: Decrypts and returns the encrypted URL.
-        stream_url.setter: Encrypts the given URL using Fernet encryption and stores it in the encrypted_url attribute.
-        __str__: Returns a string representation of the camera model.
+        password(self) -> str:
+        password(self, value: str) -> None:
+        stream_url(self) -> str:
+        stream_url(self, value: str) -> None:
+        __str__(self) -> str:
+            Returns a string representation of the camera.
+        save(self, *args, **kwargs):
+            Overrides the save method to set the default name if it is not provided.
     """
 
     CAMERA_ENVIRONMENT_CHOICES = [
@@ -79,34 +95,44 @@ class Camera(models.Model):
     resolution = models.CharField(max_length=50, choices=CAMERA_RESOLUTION_CHOICES)
     brand = models.CharField(max_length=50, choices=CAMERA_BRAND_CHOICES)
     encrypted_url = models.BinaryField(blank=True, null=True)
-    # ip_address = models.GenericIPAddressField()
-    # port = models.IntegerField()
-    # encrypted_password = models.BinaryField()
+    ip_address = models.GenericIPAddressField()
+    port = models.IntegerField()
+    username = models.CharField(max_length=50, blank=True, null=True)
+    encrypted_password = models.BinaryField(blank=True, null=True)
+    address_line_1 = models.CharField(max_length=255)
+    address_line_2 = models.CharField(max_length=255, blank=True, null=True)
+    city = models.CharField(max_length=50)
+    zip_code = models.CharField(max_length=10)
+    state_province = models.CharField(max_length=50)
+    country = models.CharField(max_length=50)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    installation_notes = models.TextField(blank=True, null=True)
 
-    # @property
-    # def password(self) -> str:
-    #     """
-    #     Decrypts and returns the encrypted password.
+    @property
+    def password(self) -> str:
+        """
+        Decrypts and returns the encrypted password.
 
-    #     Returns:
-    #         str: The decrypted password.
-    #     """
-    #     fernet = Fernet(settings.FERNET_KEY)
-    #     return fernet.decrypt(self.encrypted_password).decode()
+        Returns:
+            str: The decrypted password.
+        """
+        fernet = Fernet(settings.FERNET_KEY)
+        return fernet.decrypt(self.encrypted_password).decode()
 
-    # @password.setter
-    # def password(self, value: str) -> None:
-    #     """
-    #     Encrypts the given password using Fernet encryption and stores it in the encrypted_password attribute.
+    @password.setter
+    def password(self, value: str) -> None:
+        """
+        Encrypts the given password using Fernet encryption and stores it in the encrypted_password attribute.
 
-    #     Args:
-    #         value (str): The password to be encrypted.
+        Args:
+            value (str): The password to be encrypted.
 
-    #     Returns:
-    #         None
-    #     """
-    #     fernet = Fernet(settings.FERNET_KEY)
-    #     self.encrypted_password = fernet.encrypt(value.encode())
+        Returns:
+            None
+        """
+        fernet = Fernet(settings.FERNET_KEY)
+        self.encrypted_password = fernet.encrypt(value.encode())
 
     @property
     def stream_url(self) -> str:
@@ -140,38 +166,3 @@ class Camera(models.Model):
         if not self.name:
             self.name = f"{self.brand} {self.camera_type} ({self.pk})"
         super().save(*args, **kwargs)
-
-
-class CameraSetup(models.Model):
-    """
-    Represents the setup details of a camera.
-
-    Attributes:
-        camera (Camera): The camera for which the setup details are provided.
-        address_line_1 (str): The first line of the address where the camera is installed.
-        address_line_2 (str): The second line of the address where the camera is installed.
-        city (str): The city where the camera is installed.
-        zip_code (str): The ZIP code of the area where the camera is installed.
-        state_province (str): The state or province where the camera is installed.
-        country (str): The country where the camera is installed.
-        installation_notes (str): Additional notes about the installation of the camera.
-
-    Methods:
-        __str__: Returns a string representation of the camera setup model.
-    """
-
-    camera = models.OneToOneField(
-        Camera, on_delete=models.CASCADE, related_name="setup"
-    )
-    address_line_1 = models.CharField(max_length=255)
-    address_line_2 = models.CharField(max_length=255, blank=True, null=True)
-    city = models.CharField(max_length=50)
-    zip_code = models.CharField(max_length=10)
-    state_province = models.CharField(max_length=50)
-    country = models.CharField(max_length=50)
-    date = models.DateField()
-    time = models.TimeField()
-    installation_notes = models.TextField()
-
-    def __str__(self) -> str:
-        return f"{self.camera} - {self.address_line_1}, {self.city}, {self.state_province}, {self.country}"

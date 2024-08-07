@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from .forms import AddCameraForm
-from .models import Camera, CameraSetup
+from .models import Camera
 
 
 @admin.register(Camera)
@@ -24,6 +24,10 @@ class CameraAdmin(admin.ModelAdmin):
         "industry_type",
         "user",
         "environment",
+        "city",
+        "zip_code",
+        "state_province",
+        "country",
     )
     list_filter = (
         "brand",
@@ -32,41 +36,10 @@ class CameraAdmin(admin.ModelAdmin):
         "industry_type",
         "user",
         "environment",
+        "city",
+        "state_province",
+        "country",
+        "created_at",
+        "updated_at",
     )
     ordering = ("brand", "camera_type")
-
-
-@admin.register(CameraSetup)
-class CameraSetupAdmin(admin.ModelAdmin):
-    list_display = (
-        "camera",
-        "installation_notes",
-        "address_line_1",
-        "city",
-        "zip_code",
-        "state_province",
-        "country",
-        "date",
-    )
-    search_fields = (
-        "camera",
-        "city",
-        "zip_code",
-        "state_province",
-        "country",
-    )
-    list_filter = (
-        "camera",
-        "city",
-        "state_province",
-        "country",
-        "date",
-        "camera__user",
-        "time",
-        "camera__brand",
-        "camera__camera_type",
-        "camera__environment",
-        "camera__resolution",
-        "camera__industry_type",
-    )
-    ordering = ("camera", "city")

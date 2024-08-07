@@ -1,14 +1,13 @@
-from email.policy import HTTP
-import http
+from datetime import datetime
 from drf_spectacular.utils import extend_schema, inline_serializer
 from django.shortcuts import redirect
+from numpy import number
 from requests import HTTPError
 from rest_framework import generics, status
 from rest_framework import generics, status, serializers
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from camera_integration.models import Camera, CameraSetup
 from user_authentication.models import User
 from .models import (
     Card,
@@ -43,9 +42,8 @@ class SubscriptionView(generics.GenericAPIView):
 
         user = validated_data["user"]
         plan = validated_data["plan"]
-        system_setup_data = validated_data["system_setup_data"]
         card = validated_data.get("card")
-        quantity = validated_data["quantity"]
+        number_of_cameras = validated_data["number_of_cameras"]
         payment_method = validated_data["payment_method"]
 
         return_url = self.request.build_absolute_uri(
@@ -59,9 +57,8 @@ class SubscriptionView(generics.GenericAPIView):
             paypal_subscription_id, approval_url = self._process_payment(
                 user,
                 plan,
-                system_setup_data,
                 card,
-                quantity,
+                number_of_cameras,
                 payment_method,
                 return_url,
                 cancel_url,
@@ -82,9 +79,8 @@ class SubscriptionView(generics.GenericAPIView):
                 TemporarySubscriptionData.objects.create(
                     user=user,
                     plan=plan,
-                    quantity=quantity,
+                    number_of_cameras=number_of_cameras,
                     paypal_subscription_id=paypal_subscription_id,
-                    **system_setup_data,
                 )
                 return redirect(approval_url)
             except Exception as e:
@@ -118,9 +114,8 @@ class SubscriptionView(generics.GenericAPIView):
         self,
         user: User,
         plan: Plan,
-        system_setup_data,
         card,
-        quantity,
+        number_of_cameras,
         payment_method,
         return_url,
         cancel_url,
@@ -150,7 +145,7 @@ class SubscriptionView(generics.GenericAPIView):
             plan_id=plan.paypal_plan_id,
             return_url=return_url,
             cancel_url=cancel_url,
-            quantity=quantity,
+            quantity=number_of_cameras,
             payment_method=payment_method,
             subscriber=subscriber,
         )
@@ -171,14 +166,13 @@ class SubscriptionView(generics.GenericAPIView):
                     card,
                     start_date,
                     end_date,
-                    quantity,
+                    number_of_cameras,
                     payment_method,
                     paypal_subscription_id,
                 )
                 self._create_transaction(
-                    user, subscription, plan, quantity, paypal_subscription_id
+                    user, subscription, plan, number_of_cameras, paypal_subscription_id
                 )
-                self._handle_system_setup(user, system_setup_data)
             except Exception as e:
                 raise Exception("Failed to create subscription") from e
 
@@ -191,7 +185,7 @@ class SubscriptionView(generics.GenericAPIView):
             None,
         )
 
-    def _create_card(self, user, card_data):
+    def _create_card(self, user: User, card_data):
         if Card.objects.filter(user=user, number=card_data["number"]).exists():
             return Card.objects.get(user=user, number=card_data["number"])
         return Card.objects.create(
@@ -208,14 +202,14 @@ class SubscriptionView(generics.GenericAPIView):
 
     def _create_subscription(
         self,
-        user,
-        plan,
-        card,
-        start_date,
-        end_date,
-        quantity,
-        payment_method,
-        paypal_subscription_id,
+        user: User,
+        plan: Plan,
+        card: Card,
+        start_date: datetime,
+        end_date: datetime,
+        number_of_cameras: int,
+        payment_method: str,
+        paypal_subscription_id: str,
     ):
         return Subscription.objects.create(
             user=user,
@@ -224,43 +218,25 @@ class SubscriptionView(generics.GenericAPIView):
             payer_email=None,
             start_date=start_date,
             end_date=end_date,
-            number_of_cameras=quantity,
+            number_of_cameras=number_of_cameras,
             payment_method=payment_method,
             paypal_subscription_id=paypal_subscription_id,
         )
 
-    def _create_transaction(self, user, subscription, plan, quantity, transaction_id):
+    def _create_transaction(
+        self,
+        user: User,
+        subscription: Subscription,
+        plan: Plan,
+        number_of_cameras: int,
+        transaction_id: str,
+    ):
         return Transaction.objects.create(
             user=user,
             subscription=subscription,
-            amount=plan.price * quantity,
+            amount=plan.price * number_of_cameras,
             transaction_id=transaction_id,
         )
-
-    def _handle_system_setup(self, user, system_setup_data):
-        for cam in range(system_setup_data["number_of_cameras"]):
-            camera = Camera.objects.create(
-                user=user,
-                industry_type=system_setup_data["industry_type"],
-                camera_type=system_setup_data["camera_type"],
-                environment=system_setup_data["environment"],
-                resolution=system_setup_data["resolution"],
-                brand=system_setup_data["brand"],
-            )
-            camera.stream_url = system_setup_data["url"]
-            camera.save()
-            CameraSetup.objects.create(
-                camera=camera,
-                address_line_1=system_setup_data["address_line_1"],
-                address_line_2=system_setup_data["address_line_2"],
-                city=system_setup_data["city"],
-                zip_code=system_setup_data["zip_code"],
-                state_province=system_setup_data["state_province"],
-                country=system_setup_data["country"],
-                date=system_setup_data["date"],
-                time=system_setup_data["time"],
-                installation_notes=system_setup_data["installation_notes"],
-            )
 
 
 class SubscriptionDetailView(generics.RetrieveAPIView):
@@ -323,7 +299,6 @@ class PayPalReturnView(generics.GenericAPIView):
                 {"error": f"Failed to create subscription: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        self._handle_system_setup(temp_data)
 
         temp_data.delete()
         return Response(
@@ -340,7 +315,9 @@ class PayPalReturnView(generics.GenericAPIView):
             }
         )
 
-    def _create_subscription(self, temp_data, payer_email):
+    def _create_subscription(
+        self, temp_data: TemporarySubscriptionData, payer_email: str
+    ):
         plan = temp_data.plan
         start_date = timezone.now()
         end_date = start_date + timezone.timedelta(
@@ -359,7 +336,9 @@ class PayPalReturnView(generics.GenericAPIView):
             paypal_subscription_id=temp_data.paypal_subscription_id,
         )
 
-    def _create_transaction(self, temp_data, subscription):
+    def _create_transaction(
+        self, temp_data: TemporarySubscriptionData, subscription: Subscription
+    ):
         plan = temp_data.plan
         quantity = temp_data.quantity
 
@@ -369,30 +348,6 @@ class PayPalReturnView(generics.GenericAPIView):
             amount=plan.price * quantity,
             transaction_id=temp_data.paypal_subscription_id,
         )
-
-    def _handle_system_setup(self, temp_data: TemporarySubscriptionData):
-        for cam_data in range(temp_data.number_of_cameras):
-            camera = Camera.objects.create(
-                user=temp_data.user,
-                industry_type=temp_data.industry_type,
-                camera_type=temp_data.camera_type,
-                environment=temp_data.environment,
-                resolution=temp_data.resolution,
-                brand=temp_data.brand,
-                stream_url=temp_data.url,
-            )
-            CameraSetup.objects.create(
-                camera=camera,
-                address_line_1=temp_data.address_line_1,
-                address_line_2=temp_data.address_line_2,
-                city=temp_data.city,
-                zip_code=temp_data.zip_code,
-                state_province=temp_data.state_province,
-                country=temp_data.country,
-                date=temp_data.date,
-                time=temp_data.time,
-                installation_notes=temp_data.installation_notes,
-            )
 
 
 class PayPalCancelView(generics.GenericAPIView):
